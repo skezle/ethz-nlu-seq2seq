@@ -1,6 +1,7 @@
 # data files
 data/
 *.tar.gz
+pickled_vars/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
