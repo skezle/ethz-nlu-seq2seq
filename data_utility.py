@@ -68,7 +68,7 @@ def get_or_create_vocabulary():
         vocabulary[PAD_TOKEN] = 1
 
         pickle.dump(vocabulary, open('pickled_vars/vocabulary.p', 'wb'))
-
+        train_file.close()
     return vocabulary
 
 
@@ -161,24 +161,55 @@ def get_data_by_type(t):
 ###
 # Custom function for bucketing. TODO Discuss and finish during meeting
 ###
-def bucket_by_sequence_length(inputs, batch_size):
+def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size):
 
-    inputs = sorted(inputs, key=len)
+    # print(enc_inputs)
+    # print(dec_inputs)
+    # print('###################################################')
+    enc_dec = zip(enc_inputs, dec_inputs)
+    enc_dec = sorted(enc_dec, key=lambda inputs: len(inputs[0]))
 
-    num_batches = len(inputs) / batch_size
+    enc_inputs = []
+    dec_inputs = []
+    for enc_input, dec_input in enc_dec:
+        enc_inputs.append(enc_input)
+        dec_inputs.append(dec_input)
 
-    for i in range(num_batches + 1):
+    # word_2_index, index_2_word = get_or_create_dicts_from_train_data()
+
+    # print(enc_dec)
+
+    # for i in range(len(enc_inputs)):
+    #     print(enc_inputs[i], dec_inputs[i])
+
+
+    num_batches = len(enc_inputs) / batch_size
+
+    if len(enc_inputs) % batch_size != 0:
+        num_batches += 1
+
+    for i in range(num_batches):
         max_len = -1
-        batch = []
-        for input in inputs[i*batch_size:(i+1)*batch_size]:
+        batch_encoder = []
+        for input in enc_inputs[i*batch_size:(i+1)*batch_size]:
             if len(input) > max_len:
                 max_len = len(input)
 
-        for input in inputs[i*batch_size:(i+1)*batch_size]:
+        for input in enc_inputs[i*batch_size:(i+1)*batch_size]:
             input.extend([3] * (max_len - len(input)))
-            batch.append(input)
+            batch_encoder.append(input)
+
+        max_len = -1
+        batch_decoder = []
+        for input in dec_inputs[i * batch_size:(i + 1) * batch_size]:
+            if len(input) > max_len:
+                max_len = len(input)
+
+        for input in dec_inputs[i * batch_size:(i + 1) * batch_size]:
+            input.extend([3] * (max_len - len(input)))
+            batch_decoder.append(input)
 
         # batch = map(list, zip(*batch))  # Transpose it.
 
-        yield batch
+        yield batch_encoder, batch_decoder
 

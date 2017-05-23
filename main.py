@@ -33,20 +33,21 @@ with tf.variable_scope('WORD_EMBEDDINGS'):
 # Cell to be used both for the encoder RNN and the decoder RNN
 ###
 with tf.variable_scope('CELL'):
-    cell = tf.contrib.rnn.GRUCell(cell_size)
+    cell_encoder = tf.contrib.rnn.GRUCell(cell_size)
+    cell_decoder = tf.contrib.rnn.GRUCell(cell_size)
 
 ###
 # Encoder RNN
 ###
-with tf.variable_scope('Encoder RNN'):
+with tf.variable_scope('Encoder_RNN'):
     init_state_encoder = tf.placeholder(tf.float32, [batch_size, cell_size], name='init_state_encoder')
-    encoder_outputs, encoder_final_state = tf.nn.dynamic_rnn(cell, embeddings_encoder, dtype=tf.float32)
+    encoder_outputs, encoder_final_state = tf.nn.dynamic_rnn(cell_encoder, embeddings_encoder, dtype=tf.float32)
 
 ###
 # Decoder RNN
 ###
-with tf.variable_scope('Decoder RNN'):
-    decoder_outputs, decoder_final_state = tf.nn.dynamic_rnn(cell, embeddings_decoder, initial_state=encoder_final_state)
+with tf.variable_scope('Decoder_RNN'):
+    decoder_outputs, decoder_final_state = tf.nn.dynamic_rnn(cell_decoder, embeddings_decoder, initial_state=encoder_final_state)
 
 ###
 # Loss and training
@@ -59,5 +60,14 @@ with tf.variable_scope('Decoder RNN'):
 ###
 with tf.Session() as sess:
     enc_inputs, dec_inputs, word_2_index, index_2_word = get_data_by_type('train')
-    # batches = bucket_by_sequence_length(enc_inputs, batch_size)
+    batches = bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size)
+
+    i = 0
+    for batch_encoder, batch_decoder in batches:
+        print(len(batch_encoder), len(batch_encoder[0]), len(batch_decoder), len(batch_decoder[0]))
+        # print
+        i+=1
+
+        if(i==10):
+            break
 
