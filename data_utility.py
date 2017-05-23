@@ -8,7 +8,9 @@ UNK_TOKEN = "<unk>"
 PAD_TOKEN = "<pad>"
 VOCABULARY_SIZE = 35000
 
-
+###
+# Creates filename_processed.txt file by transforming the original triples file to a touple file
+###
 def triples_to_touples(filename):
     filename = filename.split('.')
 
@@ -25,6 +27,9 @@ def triples_to_touples(filename):
     f1.close()
 
 
+###
+# Counts unique_tokens. No shit Sherlock...
+###
 def count_unique_tokens(filename):
     f = open(filename, 'r')
     s = set()
@@ -36,10 +41,10 @@ def count_unique_tokens(filename):
     f.close()
     return len(s)
 
+
 ###
 # Gets or creates a vocabulary based on VOCABULARY_SIZE
 ###
-
 def get_or_create_vocabulary():
 
     try:
@@ -154,7 +159,7 @@ def get_data_by_type(t):
 
 
 ###
-# Custom function for bucketing. Needs to be discussed and finished during the meeting
+# Custom function for bucketing. TODO Discuss and finish during meeting
 ###
 def bucket_by_sequence_length(inputs, batch_size):
 
@@ -173,8 +178,7 @@ def bucket_by_sequence_length(inputs, batch_size):
             input.extend([3] * (max_len - len(input)))
             batch.append(input)
 
-        batch = map(list, zip(*batch))  # Transpose it.
+        # batch = map(list, zip(*batch))  # Transpose it.
 
-        # print batch
         yield batch
 
