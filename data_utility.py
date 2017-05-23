@@ -13,6 +13,7 @@ UNK_TOKEN_INDEX = 2
 PAD_TOKEN_INDEX = 3
 TRAINING_FILEPATH = 'data/Training_Shuffled_Dataset.txt'
 TRAINING_TUPLES_FILEPATH = 'Training_Shuffled_Dataset_tuples.txt'
+VALIDATION_FILEPATH = 'data/Validation_Shuffled_Dataset.txt'
 VALIDATION_TUPLES_FILEPATH = 'Validation_Shuffled_Dataset_tuples.txt'
 VOCABULARY_FILEPATH = 'pickled_vars/vocabulary.p'
 W2I_FILEPATH = 'pickled_vars/word_2_index.p'
@@ -126,7 +127,12 @@ def get_data_by_type(t):
     if t=='train':
         filename = TRAINING_TUPLES_FILEPATH
     elif t=='eval':
+
         filename = VALIDATION_TUPLES_FILEPATH
+
+        if not os.path.isfile(filename):
+            triples_to_tuples(VALIDATION_FILEPATH, filename)
+
     else:
         print('Type must be "train" or "eval".')
         return
@@ -139,7 +145,7 @@ def get_data_by_type(t):
         decoder_inputs = pickle.load(open(DECODER_INPUT_FILEPATH, 'rb'))
     except:
         encoder_inputs = []
-        decoder_inputs = []
+        decoder_inputs = [] 
 
         f = open(filename, 'r')
         for line in f:
