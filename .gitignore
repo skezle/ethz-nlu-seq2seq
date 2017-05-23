@@ -105,3 +105,6 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# User-specific IDE settings
+.idea/
