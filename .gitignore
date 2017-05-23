@@ -2,6 +2,7 @@
 data/
 *.tar.gz
 pickled_vars/
+.idea*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
