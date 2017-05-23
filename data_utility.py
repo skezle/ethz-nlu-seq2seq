@@ -1,21 +1,31 @@
 import pickle
 import os.path
 import operator
+from config import Config as conf
 
 START_TOKEN = "<bos>"
 END_TOKEN = "<eos>"
 UNK_TOKEN = "<unk>"
 PAD_TOKEN = "<pad>"
-VOCABULARY_SIZE = 35000
-
+START_TOKEN_INDEX = 0
+END_TOKEN_INDEX = 1
+UNK_TOKEN_INDEX = 2
+PAD_TOKEN_INDEX = 3
+TRAINING_FILEPATH = 'data/Training_Shuffled_Dataset.txt'
+TRAINING_TUPLES_FILEPATH = 'Training_Shuffled_Dataset_tuples.txt'
+VALIDATION_TUPLES_FILEPATH = 'Validation_Shuffled_Dataset_tuples.txt'
+VOCABULARY_FILEPATH = 'pickled_vars/vocabulary.p'
+W2I_FILEPATH = 'pickled_vars/word_2_index.p'
+I2W_FILEPATH = 'pickled_vars/index_2_index.p'
+ENCODER_INPUT_FILEPATH = 'pickled_vars/encoder_inputs.p'
+DECODER_INPUT_FILEPATH = 'pickled_vars/decoder_inputs.p'
 ###
-# Creates filename_processed.txt file by transforming the original triples file to a touple file
+# Creates an output file by transforming the original triples file to a tuple file
 ###
-def triples_to_touples(filename):
-    filename = filename.split('.')
+def triples_to_tuples(input_filepath, output_filepath):
 
-    f = open(filename[0] + '.' + filename[1], 'r')
-    f1 = open(filename[0] + '_processed.' + filename[1], 'w')
+    f = open(input_filepath, 'r')
+    f1 = open(output_filepath, 'w')
 
     for line in f:
         triples = line.strip().split('\t')
@@ -48,10 +58,10 @@ def count_unique_tokens(filename):
 def get_or_create_vocabulary():
 
     try:
-        vocabulary = pickle.load(open('pickled_vars/vocabulary.p', 'rb'))
+        vocabulary = pickle.load(open(VOCABULARY_FILEPATH, 'rb'))
     except:
         vocabulary = {}
-        train_file = open('data/Training_Shuffled_Dataset_tuples.txt')
+        train_file = open(TRAINING_TUPLES_FILEPATH)
 
         for line in train_file:
             conversation = line.strip().split()
@@ -60,14 +70,14 @@ def get_or_create_vocabulary():
 
         sorted_vocab = sorted(vocabulary.items(), key=operator.itemgetter(1), reverse=True)
 
-        sorted_vocab = sorted_vocab[:VOCABULARY_SIZE-4]
+        sorted_vocab = sorted_vocab[:conf.VOCABULARY_SIZE-4]
         vocabulary = dict(sorted_vocab)
         vocabulary[START_TOKEN] = 1
         vocabulary[END_TOKEN] = 1
         vocabulary[UNK_TOKEN] = 1
         vocabulary[PAD_TOKEN] = 1
 
-        pickle.dump(vocabulary, open('pickled_vars/vocabulary.p', 'wb'))
+        pickle.dump(vocabulary, open(VOCABULARY_FILEPATH, 'wb'))
         train_file.close()
     return vocabulary
 
@@ -78,23 +88,21 @@ def get_or_create_vocabulary():
 def get_or_create_dicts_from_train_data():
 
     try:
-        word_2_index = pickle.load(open('pickled_vars/word_2_index.p', 'rb'))
-        index_2_word = pickle.load(open('pickled_vars/index_2_index.p', 'rb'))
+        word_2_index = pickle.load(open(W2I_FILEPATH, 'rb'))
+        index_2_word = pickle.load(open(I2W_FILEPATH, 'rb'))
     except:
-        filename = 'data/Training_Shuffled_Dataset_tuples.txt'
+        filename = TRAINING_TUPLES_FILEPATH
 
         if not os.path.isfile(filename):
-            parts = filename.split('_')
-            orig_file = parts[0] + '_' + parts[1] + '_' + parts[2] + '.txt'
-            triples_to_touples(orig_file)
+            triples_to_tuples(TRAINING_FILEPATH, filename)
 
         f = open(filename, 'r')
 
-        word_2_index = {START_TOKEN: 0, END_TOKEN: 1, UNK_TOKEN: 2, PAD_TOKEN: 3}
-        index_2_word = {0: START_TOKEN, 1: END_TOKEN, 2: UNK_TOKEN, 3: PAD_TOKEN}
+        word_2_index = {START_TOKEN: START_TOKEN_INDEX, END_TOKEN: END_TOKEN_INDEX, UNK_TOKEN: UNK_TOKEN_INDEX, PAD_TOKEN: PAD_TOKEN_INDEX}
+        index_2_word = {START_TOKEN_INDEX: START_TOKEN, END_TOKEN_INDEX: END_TOKEN, UNK_TOKEN_INDEX: UNK_TOKEN, PAD_TOKEN_INDEX: PAD_TOKEN}
         vocabulary = get_or_create_vocabulary()
 
-        index = 4
+        index = 4 # because the first 4 elements are are already occupied by our tokens
         for line in f:
             conversation = line.strip().split()
             # print(conversation)
@@ -104,8 +112,8 @@ def get_or_create_dicts_from_train_data():
                     index_2_word[index] = word
                     index += 1
 
-        pickle.dump(word_2_index, open('pickled_vars/word_2_index.p', 'wb'))
-        pickle.dump(index_2_word, open('pickled_vars/index_2_word.p', 'wb'))
+        pickle.dump(word_2_index, open(W2I_FILEPATH, 'wb'))
+        pickle.dump(index_2_word, open(I2W_FILEPATH, 'wb'))
 
     return word_2_index, index_2_word
 
@@ -116,9 +124,9 @@ def get_or_create_dicts_from_train_data():
 def get_data_by_type(t):
 
     if t=='train':
-        filename = 'data/Training_Shuffled_Dataset_tuples.txt'
+        filename = TRAINING_TUPLES_FILEPATH
     elif t=='eval':
-        filename = 'data/Validation_Shuffled_Dataset_tuples.txt'
+        filename = VALIDATION_TUPLES_FILEPATH
     else:
         print('Type must be "train" or "eval".')
         return
@@ -127,8 +135,8 @@ def get_data_by_type(t):
     vocabulary = get_or_create_vocabulary()
 
     try:
-        encoder_inputs = pickle.load(open('pickled_vars/encoder_inputs.p', 'rb'))
-        decoder_inputs = pickle.load(open('pickled_vars/decoder_inputs.p', 'rb'))
+        encoder_inputs = pickle.load(open(ENCODER_INPUT_FILEPATH, 'rb'))
+        decoder_inputs = pickle.load(open(DECODER_INPUT_FILEPATH, 'rb'))
     except:
         encoder_inputs = []
         decoder_inputs = []
@@ -159,29 +167,14 @@ def get_data_by_type(t):
 
 
 ###
-# Custom function for bucketing. TODO Discuss and finish during meeting
+# Custom function for bucketing
 ###
 def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size):
 
-    # print(enc_inputs)
-    # print(dec_inputs)
-    # print('###################################################')
     enc_dec = zip(enc_inputs, dec_inputs)
-    enc_dec = sorted(enc_dec, key=lambda inputs: len(inputs[0]))
+    sorted_enc_dec_pairs = sorted(enc_dec, key=lambda inputs: len(inputs[0]))
 
-    enc_inputs = []
-    dec_inputs = []
-    for enc_input, dec_input in enc_dec:
-        enc_inputs.append(enc_input)
-        dec_inputs.append(dec_input)
-
-    # word_2_index, index_2_word = get_or_create_dicts_from_train_data()
-
-    # print(enc_dec)
-
-    # for i in range(len(enc_inputs)):
-    #     print(enc_inputs[i], dec_inputs[i])
-
+    enc_inputs, dec_inputs = zip(*sorted_enc_dec_pairs)
 
     num_batches = len(enc_inputs) / batch_size
 
@@ -190,26 +183,24 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size):
 
     for i in range(num_batches):
         max_len = -1
-        batch_encoder = []
+        encoder_batch = []
         for input in enc_inputs[i*batch_size:(i+1)*batch_size]:
             if len(input) > max_len:
                 max_len = len(input)
 
         for input in enc_inputs[i*batch_size:(i+1)*batch_size]:
-            input.extend([3] * (max_len - len(input)))
-            batch_encoder.append(input)
+            input.extend([PAD_TOKEN_INDEX] * (max_len - len(input)))
+            encoder_batch.append(input)
 
         max_len = -1
-        batch_decoder = []
+        decoder_batch = []
         for input in dec_inputs[i * batch_size:(i + 1) * batch_size]:
             if len(input) > max_len:
                 max_len = len(input)
 
         for input in dec_inputs[i * batch_size:(i + 1) * batch_size]:
-            input.extend([3] * (max_len - len(input)))
-            batch_decoder.append(input)
+            input.extend([PAD_TOKEN_INDEX] * (max_len - len(input)))
+            decoder_batch.append(input)
 
-        # batch = map(list, zip(*batch))  # Transpose it.
-
-        yield batch_encoder, batch_decoder
+        yield decoder_batch, decoder_batch
 
