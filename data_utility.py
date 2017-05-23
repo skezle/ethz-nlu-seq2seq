@@ -54,7 +54,7 @@ def count_unique_tokens(filename):
 
 
 ###
-# Gets or creates a vocabulary based on VOCABULARY_SIZE
+# Gets or creates a vocabulary based on vocabulary size
 ###
 def get_or_create_vocabulary():
 
@@ -71,7 +71,7 @@ def get_or_create_vocabulary():
 
         sorted_vocab = sorted(vocabulary.items(), key=operator.itemgetter(1), reverse=True)
 
-        sorted_vocab = sorted_vocab[:conf.VOCABULARY_SIZE-4]
+        sorted_vocab = sorted_vocab[:conf.vocabulary_size-4]
         vocabulary = dict(sorted_vocab)
         vocabulary[START_TOKEN] = 1
         vocabulary[END_TOKEN] = 1

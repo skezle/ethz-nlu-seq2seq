@@ -12,12 +12,8 @@ from tensorflow.contrib.rnn import LSTMCell, LSTMStateTuple, GRUCell
 import helpers
 
 
-class Seq2SeqModel():
-    """Seq2Seq model usign blocks from new `tf.contrib.seq2seq`.
-    Requires TF 1.0.0-alpha"""
-
-    PAD = 0
-    EOS = 1
+class BaselineModel():
+    """Seq2Seq model usign blocks from new `tf.contrib.seq2seq`."""
 
     def __init__(self, encoder_cell, decoder_cell, vocab_size, embedding_size,
                  bidirectional=True,
@@ -41,6 +37,8 @@ class Seq2SeqModel():
         return self.decoder_cell.output_size
 
     def _make_graph(self):
+        tf.reset_default_graph()
+
         if self.debug:
             self._init_debug_inputs()
         else:

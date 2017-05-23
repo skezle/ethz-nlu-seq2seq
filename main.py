@@ -1,73 +1,79 @@
 import tensorflow as tf
+from tqdm import tqdm
 from data_utility import *
-
-vocabulary_size = 35000
-cell_size = 512
-batch_size = 64
-learning_rate = 1e-4
-word_embedding_size = 100
-# num_steps = 29 # Network used a step of 1 so that inputs and outputs can match up, hence num_steps = MAX_SENTENCE_LENGTH-1
-log_directory = 'logs/'
-
-
-###
-# Building of the graph
-###
-with tf.variable_scope('DATA'):
-    # not all might be needed
-    x_encoder = tf.placeholder(tf.int32, [None, None], name='x_encoder') # [batch_size, bucket_size]
-    y_encoder = tf.placeholder(tf.int32, [None, None], name='y_encoder') # [batch_size, bucket_size]
-    x_decoder = tf.placeholder(tf.int32, [None, None], name='x_decoder') # [batch_size, bucket_size]
-    y_decoder = tf.placeholder(tf.int32, [None, None], name='y_decoder') # [batch_size, bucket_size]
-
-###
-# Word embedding layer
-###
-with tf.variable_scope('WORD_EMBEDDINGS'):
-    W_embed = tf.get_variable(name='W_embed', shape=[vocabulary_size, word_embedding_size], initializer=tf.contrib.layers.xavier_initializer()) # [vocabulary_size, word_embedding_size]
-    # no need for unstacking as dynamic_rnn expects [batch_size, bucket_size, word_embedding_size]
-    embeddings_encoder = tf.nn.embedding_lookup(W_embed, x_encoder)  # [batch_size, bucket_size, word_embedding_size]
-    embeddings_decoder = tf.nn.embedding_lookup(W_embed, x_decoder)  # [batch_size, bucket_size, word_embedding_size]
-
-###
-# Cell to be used both for the encoder RNN and the decoder RNN
-###
-with tf.variable_scope('CELL'):
-    cell_encoder = tf.contrib.rnn.GRUCell(cell_size)
-    cell_decoder = tf.contrib.rnn.GRUCell(cell_size)
-
-###
-# Encoder RNN
-###
-with tf.variable_scope('Encoder_RNN'):
-    init_state_encoder = tf.placeholder(tf.float32, [batch_size, cell_size], name='init_state_encoder')
-    encoder_outputs, encoder_final_state = tf.nn.dynamic_rnn(cell_encoder, embeddings_encoder, dtype=tf.float32)
-
-###
-# Decoder RNN
-###
-with tf.variable_scope('Decoder_RNN'):
-    decoder_outputs, decoder_final_state = tf.nn.dynamic_rnn(cell_decoder, embeddings_decoder, initial_state=encoder_final_state)
-
-###
-# Loss and training
-###
-# with tf.variable_scope('Loss'):
-    # TODO complete Loss
+from baseline import BaselineModel
 
 ###
 # Graph execution
 ###
-with tf.Session() as sess:
+def mainFunc(argv):
+    def printUsage():
+        print('main.py -n <num_cores> -x <experiment>')
+        print('num_cores = Number of cores requested from the cluster. Set to -1 to leave unset')
+        print('experiment = experiment setup that should be executed. e.g \'baseline\'')
+
+    num_cores = -1
+    num_epochs = NUM_EPOCHS
+    experiment = ""
+    # Command line argument handling
+    try:
+        opts, args = getopt.getopt(argv,"n:x:",["num_cores=", "experiment="])
+    except getopt.GetoptError:
+        printUsage()
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == '-h':
+            printUsage()
+            sys.exit()
+        elif opt in ("-n", "--num_cores"):
+            num_cores = int(arg)
+        elif opt in ("-x", "--experiment"):
+            if arg in ("baseline"):
+                experiment = arg
+            else:
+                printUsage()
+                sys.exit(2)
+
+    print("Executing experiment {} with {} CPU cores".format(experiment, num_cores))
+    if num_cores != -1:
+        # We set the op_parallelism_threads in the ConfigProto and pass it to the TensorFlow session
+        configProto = tf.ConfigProto(inter_op_parallelism_threads=num_cores,
+                        intra_op_parallelism_threads=num_cores)
+    else:
+        configProto = tf.ConfigProto()
+
+    print("Initializing model")
+    model = None
+    if experiment == "Baseline":
+        model = BaselineModel(encoder_cell=LSTMCell(conf.encoder_cell_size),
+                              decoder_cell=LSTMCell(conf.decoder_cell_size),
+                              vocab_size=conf.vocabulary_size,
+                              embedding_size=conf.word_embedding_size,
+                              bidirectional=False,
+                              attention=False,
+                              debug=False)
+
     enc_inputs, dec_inputs, word_2_index, index_2_word = get_data_by_type('train')
-    batches = bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size)
 
-    i = 0
-    for batch_encoder, batch_decoder in batches:
-        print(len(batch_encoder), len(batch_encoder[0]), len(batch_decoder), len(batch_decoder[0]))
-        # print
-        i+=1
+    
+    print("Training network")
+    t = time.time()
+    with tf.Session() as sess:
+        enc_inputs, dec_inputs, word_2_index, index_2_word = get_data_by_type('train')
 
-        if(i==10):
-            break
+        sess.run(tf.global_variables_initializer())
+        for i in range(conf.num_epochs):
+            print("Training epoch {}".format(i))
+            for data_batch, label_batch in tqdm(bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size), total = len(enc_inputs) / conf.batch_size):
 
+                #feed_dict = {
+                #    self.encoder_inputs: inputs_,
+                #    self.encoder_inputs_length: inputs_length_,
+                #    self.decoder_targets: targets_,
+                #    self.decoder_targets_length: targets_length_,
+                #    }
+                _ = sess.run([model.train_op], feed_dict)
+
+
+if __name__ == "__main__":
+    mainFunc(sys.argv[1:])
