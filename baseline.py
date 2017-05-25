@@ -155,7 +155,7 @@ class BaselineModel():
                 tf.nn.dynamic_rnn(cell=self.encoder_cell,
                                   inputs=self.encoder_inputs_embedded,
                                   sequence_length=self.encoder_inputs_length,
-                                  time_major=False,
+                                  time_major=True,
                                   dtype=tf.float32)
                 )
 
@@ -170,7 +170,7 @@ class BaselineModel():
                                                 cell_bw=self.encoder_cell,
                                                 inputs=self.encoder_inputs_embedded,
                                                 sequence_length=self.encoder_inputs_length,
-                                                time_major=False,
+                                                time_major=True,
                                                 dtype=tf.float32)
                 )
 
@@ -248,7 +248,7 @@ class BaselineModel():
                     decoder_fn=decoder_fn_train,
                     inputs=self.decoder_train_inputs_embedded,
                     sequence_length=self.decoder_train_length,
-                    time_major=False,
+                    time_major=True,
                     scope=scope,
                 )
             )
@@ -264,7 +264,7 @@ class BaselineModel():
                 seq2seq.dynamic_rnn_decoder(
                     cell=self.decoder_cell,
                     decoder_fn=decoder_fn_inference,
-                    time_major=False,
+                    time_major=True,
                     scope=scope,
                 )
             )
