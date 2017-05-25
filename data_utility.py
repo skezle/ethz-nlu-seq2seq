@@ -158,10 +158,10 @@ def get_data_by_type(t):
                     encoder_input.append(word_2_index[word])
                 else:
                     encoder_input.append(word_2_index[UNK_TOKEN])
-            encoder_input.append(word_2_index[END_TOKEN])  # DO WE NEED EOS?
+            #encoder_input.append(word_2_index[END_TOKEN])  # DO WE NEED EOS?
             encoder_inputs.append(encoder_input)
 
-            decoder_input = [word_2_index[START_TOKEN]]
+            decoder_input = []
             for word in conversation[1].split():
                 if word in vocabulary:
                     decoder_input.append(word_2_index[word])

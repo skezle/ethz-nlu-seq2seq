@@ -8,13 +8,15 @@ import tensorflow as tf
 import tensorflow.contrib.seq2seq as seq2seq
 from tensorflow.contrib.layers import safe_embedding_lookup_sparse as embedding_lookup_unique
 from tensorflow.contrib.rnn import LSTMCell, LSTMStateTuple, GRUCell
-
+from data_utility import END_TOKEN_INDEX, PAD_TOKEN_INDEX
 import helpers
 
 
 class BaselineModel():
     """Seq2Seq model usign blocks from new `tf.contrib.seq2seq`."""
 
+    EOS = END_TOKEN_INDEX
+    PAD = PAD_TOKEN_INDEX
     def __init__(self, encoder_cell, decoder_cell, vocab_size, embedding_size,
                  bidirectional=True,
                  attention=False,
