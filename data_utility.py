@@ -168,7 +168,7 @@ def get_data_by_type(t):
                     decoder_input.append(word_2_index[word])
                 else:
                     decoder_input.append(word_2_index[UNK_TOKEN])
-            decoder_input.append(word_2_index[END_TOKEN])
+            #decoder_input.append(word_2_index[END_TOKEN])
             decoder_inputs.append(decoder_input)
 
     return encoder_inputs, decoder_inputs, word_2_index, index_2_word
