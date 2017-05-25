@@ -44,7 +44,7 @@ def mainFunc(argv):
 
     print("Initializing model")
     model = None
-    if experiment == "Baseline":
+    if experiment == "baseline":
         model = BaselineModel(encoder_cell=LSTMCell(conf.encoder_cell_size),
                               decoder_cell=LSTMCell(conf.decoder_cell_size),
                               vocab_size=conf.vocabulary_size,
@@ -52,7 +52,7 @@ def mainFunc(argv):
                               bidirectional=False,
                               attention=False,
                               debug=False)
-
+    assert model != None
     enc_inputs, dec_inputs, word_2_index, index_2_word = get_data_by_type('train')
 
     
