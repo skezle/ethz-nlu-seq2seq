@@ -1,6 +1,7 @@
 import pickle
 import os.path
 import operator
+from math import ceil
 from config import Config as conf
 
 START_TOKEN = "<bos>"
@@ -183,27 +184,22 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size):
 
     enc_inputs, dec_inputs = zip(*sorted_enc_dec_pairs)
 
-    num_batches = len(enc_inputs) / batch_size
-
-    if len(enc_inputs) % batch_size != 0:
-        num_batches += 1
+    num_batches = ceil(len(enc_inputs) / batch_size)    
 
     for batch_num in range(num_batches):
-        max_len = -1
         encoder_sequence_lengths = [len(sentence) 
                                     for sentence
                                     in enc_inputs[batch_num*batch_size:(batch_num+1)*batch_size]]
-        max_len = encoder_sequence_lengths.max()
-        encoder_batch = [input.extend([PAD_TOKEN_INDEX] * (max_len - encoder_sequence_lengths[i]))
+        max_len_enc = max(encoder_sequence_lengths)
+        encoder_batch = [sentence + ([PAD_TOKEN_INDEX] * (max_len_enc - encoder_sequence_lengths[i]))
                          for i, sentence
                          in enumerate(enc_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
 
-        max_len = -1
         decoder_sequence_lengths = [len(sentence) 
                                     for sentence
                                     in dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size]]
-        max_len = decoder_sequence_lengths.max()
-        decoder_batch = [input.extend([PAD_TOKEN_INDEX] * (max_len - decoder_sequence_lengths[i]))
+        max_len_dec = max(decoder_sequence_lengths)
+        decoder_batch = [sentence + ([PAD_TOKEN_INDEX] * (max_len_dec - decoder_sequence_lengths[i]))
                          for i, sentence
                          in enumerate(dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
 
