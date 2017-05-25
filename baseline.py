@@ -59,6 +59,7 @@ class BaselineModel():
 
         self._init_optimizer()
 
+        self._init_summary()
     def _init_debug_inputs(self):
         """ Everything is time-major """
         x = [[5, 6, 7],
@@ -285,6 +286,10 @@ class BaselineModel():
         self.loss = seq2seq.sequence_loss(logits=logits, targets=targets,
                                           weights=self.loss_weights)
         self.train_op = tf.train.AdamOptimizer().minimize(self.loss)
+
+    def _init_summary(self):
+        tf.summary.scalar("loss", self.loss)
+        self.summary_op = tf.summary.merge_all()
 
     def make_train_inputs(self, input_seq, input_seq_len, target_seq, target_seq_len):
         return {

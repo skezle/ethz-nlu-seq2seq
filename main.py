@@ -1,5 +1,6 @@
-import sys, getopt
+import sys, getopt, datetime
 import tensorflow as tf
+from random import choice
 from tqdm import tqdm
 from data_utility import *
 from baseline import BaselineModel
@@ -54,11 +55,18 @@ def mainFunc(argv):
                               debug=False)
     assert model != None
     enc_inputs, dec_inputs, word_2_index, index_2_word = get_data_by_type('train')
-
+    # Materialize validation data
+    validation_enc_inputs, validation_dec_inputs, _, _ = get_data_by_type('eval')
+    validation_data = list(bucket_by_sequence_length(validation_enc_inputs, validation_dec_inputs, conf.batch_size))
     
     print("Training network")
     with tf.Session() as sess:
-        enc_inputs, dec_inputs, word_2_index, index_2_word = get_data_by_type('train')
+        global_step = 0
+
+        # Init Tensorboard summaries. This will save Tensorboard information into a different folder at each run.
+        timestamp = '{0:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now())
+        train_writer = tf.summary.FileWriter("{}{}-training-{}".format(conf.log_directory, experiment, timestamp), graph=tf.get_default_graph())
+        validation_writer = tf.summary.FileWriter("{}{}-validation-{}".format(conf.log_directory, experiment, timestamp), graph=tf.get_default_graph())
 
         sess.run(tf.global_variables_initializer())
         for i in range(conf.num_epochs):
@@ -66,8 +74,16 @@ def mainFunc(argv):
             for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size), total = len(enc_inputs) / conf.batch_size):
 
                 feed_dict = model.make_train_inputs(data_batch, data_sentence_lengths, label_batch, label_sentence_lengths)
-                _ = sess.run([model.train_op], feed_dict)
+                _, train_summary = sess.run([model.train_op, model.summary_op], feed_dict)
+                train_writer.add_summary(train_summary, global_step)
 
+                if global_step % conf.validation_summary_frequency == 0:#
+                    # Randomly choose a batch from the validation dataset and use it for loss calculation
+                    vali_data_batch, vali_data_sentence_lengths, vali_label_batch, vali_label_sentence_lengths = choice(validation_data)
+                    validation_feed_dict = model.make_train_inputs(vali_data_batch, vali_data_sentence_lengths, vali_label_batch, vali_label_sentence_lengths)
+                    validation_summary = sess.run(model.summary_op, validation_feed_dict)
+                    validation_writer.add_summary(validation_summary, global_step)
+                global_step += 1
 
 if __name__ == "__main__":
     mainFunc(sys.argv[1:])

@@ -9,3 +9,4 @@ class Config:
     word_embedding_size = 100
     log_directory = 'logs/'
     num_epochs = 1
+    validation_summary_frequency = 1

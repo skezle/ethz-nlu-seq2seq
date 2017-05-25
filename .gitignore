@@ -4,6 +4,9 @@ data/
 pickled_vars/
 .idea*
 
+# Logs directory
+logs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
