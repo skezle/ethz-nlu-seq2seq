@@ -275,14 +275,12 @@ class BaselineModel():
                                           weights=self.loss_weights)
         self.train_op = tf.train.AdamOptimizer().minimize(self.loss)
 
-    def make_train_inputs(self, input_seq, target_seq):
-        inputs_, inputs_length_ = helpers.batch(input_seq)
-        targets_, targets_length_ = helpers.batch(target_seq)
+    def make_train_inputs(self, input_seq, input_seq_len, target_seq, target_seq_len):
         return {
-            self.encoder_inputs: inputs_,
-            self.encoder_inputs_length: inputs_length_,
-            self.decoder_targets: targets_,
-            self.decoder_targets_length: targets_length_,
+            self.encoder_inputs: input_seq,
+            self.encoder_inputs_length: input_seq_len,
+            self.decoder_targets: target_seq,
+            self.decoder_targets_length: target_seq_len,
         }
 
     def make_inference_inputs(self, input_seq):

@@ -177,6 +177,7 @@ def get_data_by_type(t):
 ###
 def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size):
 
+    assert len(enc_inputs) == len(dec_inputs)
     enc_dec = zip(enc_inputs, dec_inputs)
     sorted_enc_dec_pairs = sorted(enc_dec, key=lambda inputs: len(inputs[0]))
 
@@ -187,26 +188,24 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size):
     if len(enc_inputs) % batch_size != 0:
         num_batches += 1
 
-    for i in range(num_batches):
+    for batch_num in range(num_batches):
         max_len = -1
-        encoder_batch = []
-        for input in enc_inputs[i*batch_size:(i+1)*batch_size]:
-            if len(input) > max_len:
-                max_len = len(input)
-
-        for input in enc_inputs[i*batch_size:(i+1)*batch_size]:
-            input.extend([PAD_TOKEN_INDEX] * (max_len - len(input)))
-            encoder_batch.append(input)
+        encoder_sequence_lengths = [len(sentence) 
+                                    for sentence
+                                    in enc_inputs[batch_num*batch_size:(batch_num+1)*batch_size]]
+        max_len = encoder_sequence_lengths.max()
+        encoder_batch = [input.extend([PAD_TOKEN_INDEX] * (max_len - encoder_sequence_lengths[i]))
+                         for i, sentence
+                         in enumerate(enc_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
 
         max_len = -1
-        decoder_batch = []
-        for input in dec_inputs[i * batch_size:(i + 1) * batch_size]:
-            if len(input) > max_len:
-                max_len = len(input)
+        decoder_sequence_lengths = [len(sentence) 
+                                    for sentence
+                                    in dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size]]
+        max_len = decoder_sequence_lengths.max()
+        decoder_batch = [input.extend([PAD_TOKEN_INDEX] * (max_len - decoder_sequence_lengths[i]))
+                         for i, sentence
+                         in enumerate(dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
 
-        for input in dec_inputs[i * batch_size:(i + 1) * batch_size]:
-            input.extend([PAD_TOKEN_INDEX] * (max_len - len(input)))
-            decoder_batch.append(input)
-
-        yield decoder_batch, decoder_batch
+        yield encoder_batch, encoder_sequence_lengths, decoder_batch, decoder_sequence_lengths
 

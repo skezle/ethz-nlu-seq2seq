@@ -64,14 +64,9 @@ def mainFunc(argv):
         sess.run(tf.global_variables_initializer())
         for i in range(conf.num_epochs):
             print("Training epoch {}".format(i))
-            for data_batch, label_batch in tqdm(bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size), total = len(enc_inputs) / conf.batch_size):
+            for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size), total = len(enc_inputs) / conf.batch_size):
 
-                #feed_dict = {
-                #    self.encoder_inputs: inputs_,
-                #    self.encoder_inputs_length: inputs_length_,
-                #    self.decoder_targets: targets_,
-                #    self.decoder_targets_length: targets_length_,
-                #    }
+                feed_dict = model.make_train_inputs(data_batch, data_sentence_lengths, label_batch, label_sentence_lengths)
                 _ = sess.run([model.train_op], feed_dict)
 
 
