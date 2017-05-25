@@ -8,13 +8,14 @@ import tensorflow as tf
 import tensorflow.contrib.seq2seq as seq2seq
 from tensorflow.contrib.layers import safe_embedding_lookup_sparse as embedding_lookup_unique
 from tensorflow.contrib.rnn import LSTMCell, LSTMStateTuple, GRUCell
-from data_utility import END_TOKEN_INDEX, PAD_TOKEN_INDEX
+from data_utility import START_TOKEN_INDEX, END_TOKEN_INDEX, PAD_TOKEN_INDEX
 import helpers
 
 
 class BaselineModel():
     """Seq2Seq model usign blocks from new `tf.contrib.seq2seq`."""
 
+    BOS = START_TOKEN_INDEX
     EOS = END_TOKEN_INDEX
     PAD = PAD_TOKEN_INDEX
     def __init__(self, encoder_cell, decoder_cell, vocab_size, embedding_size,
@@ -105,24 +106,32 @@ class BaselineModel():
         with tf.name_scope('DecoderTrainFeeds'):
             sequence_size, batch_size = tf.unstack(tf.shape(self.decoder_targets))
 
-            EOS_SLICE = tf.ones([1, batch_size], dtype=tf.int32) * self.EOS
+            BOS_SLICE = tf.ones([1, batch_size], dtype=tf.int32) * self.BOS
             PAD_SLICE = tf.ones([1, batch_size], dtype=tf.int32) * self.PAD
 
-            self.decoder_train_inputs = tf.concat([EOS_SLICE, self.decoder_targets], axis=0)
+            self.decoder_train_inputs = tf.concat([BOS_SLICE, self.decoder_targets], axis=0)
             self.decoder_train_length = self.decoder_targets_length + 1
 
             decoder_train_targets = tf.concat([self.decoder_targets, PAD_SLICE], axis=0)
             decoder_train_targets_seq_len, _ = tf.unstack(tf.shape(decoder_train_targets))
-            decoder_train_targets_eos_mask = tf.one_hot(self.decoder_train_length - 1,
+            
+            eos_multiplication_mask = tf.one_hot(self.decoder_train_length - 1,
                                                         decoder_train_targets_seq_len,
-                                                        on_value=self.EOS, off_value=self.PAD,
+                                                        on_value=0, off_value=1,
                                                         dtype=tf.int32)
-            decoder_train_targets_eos_mask = tf.transpose(decoder_train_targets_eos_mask, [1, 0])
+            eos_addition_mask = tf.one_hot(self.decoder_train_length - 1,
+                                                        decoder_train_targets_seq_len,
+                                                        on_value=self.EOS, off_value=0,
+                                                        dtype=tf.int32)
+            eos_multiplication_mask = tf.transpose(eos_multiplication_mask, [1, 0])
+            eos_addition_mask = tf.transpose(eos_addition_mask, [1, 0])
 
             # hacky way using one_hot to put EOS symbol at the end of target sequence
-            decoder_train_targets = tf.add(decoder_train_targets,
-                                           decoder_train_targets_eos_mask)
-
+            decoder_train_targets = tf.add(
+                                            tf.multiply(decoder_train_targets,
+                                            eos_multiplication_mask),
+                                            eos_addition_mask)
+            
             self.decoder_train_targets = decoder_train_targets
 
             self.loss_weights = tf.ones([
