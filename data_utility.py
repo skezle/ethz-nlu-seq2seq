@@ -1,6 +1,7 @@
 import pickle
 import os.path
 import operator
+from numpy import array, transpose
 from math import ceil
 from config import Config as conf
 
@@ -194,7 +195,7 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size):
         encoder_batch = [sentence + ([PAD_TOKEN_INDEX] * (max_len_enc - encoder_sequence_lengths[i]))
                          for i, sentence
                          in enumerate(enc_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
-
+        encoder_batch = array(encoder_batch).transpose()
         decoder_sequence_lengths = [len(sentence) 
                                     for sentence
                                     in dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size]]
@@ -202,6 +203,6 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size):
         decoder_batch = [sentence + ([PAD_TOKEN_INDEX] * (max_len_dec - decoder_sequence_lengths[i]))
                          for i, sentence
                          in enumerate(dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
-
+        decoder_batch = array(decoder_batch).transpose()
         yield encoder_batch, encoder_sequence_lengths, decoder_batch, decoder_sequence_lengths
 
