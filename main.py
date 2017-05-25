@@ -1,3 +1,4 @@
+import sys, getopt
 import tensorflow as tf
 from tqdm import tqdm
 from data_utility import *
@@ -13,7 +14,6 @@ def mainFunc(argv):
         print('experiment = experiment setup that should be executed. e.g \'baseline\'')
 
     num_cores = -1
-    num_epochs = NUM_EPOCHS
     experiment = ""
     # Command line argument handling
     try:
@@ -57,7 +57,6 @@ def mainFunc(argv):
 
     
     print("Training network")
-    t = time.time()
     with tf.Session() as sess:
         enc_inputs, dec_inputs, word_2_index, index_2_word = get_data_by_type('train')
 
