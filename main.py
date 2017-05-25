@@ -45,8 +45,8 @@ def mainFunc(argv):
     print("Initializing model")
     model = None
     if experiment == "baseline":
-        model = BaselineModel(encoder_cell=LSTMCell(conf.encoder_cell_size),
-                              decoder_cell=LSTMCell(conf.decoder_cell_size),
+        model = BaselineModel(encoder_cell=conf.encoder_cell,
+                              decoder_cell=conf.decoder_cell,
                               vocab_size=conf.vocabulary_size,
                               embedding_size=conf.word_embedding_size,
                               bidirectional=False,
