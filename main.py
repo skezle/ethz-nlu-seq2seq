@@ -68,7 +68,8 @@ def mainFunc(argv):
 
         # Init Tensorboard summaries. This will save Tensorboard information into a different folder at each run.
         timestamp = '{0:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now())
-        train_writer = tf.summary.FileWriter("{}{}-training-{}".format(conf.log_directory, experiment, timestamp), graph=tf.get_default_graph())
+        train_logfolderPath= os.path.join(conf.log_directory, "{}-training-{}".format(experiment, timestamp))
+        train_writer = tf.summary.FileWriter(train_logfolderPath, graph=tf.get_default_graph())
         validation_writer = tf.summary.FileWriter("{}{}-validation-{}".format(conf.log_directory, experiment, timestamp), graph=tf.get_default_graph())
 
         sess.run(tf.global_variables_initializer())
@@ -88,7 +89,7 @@ def mainFunc(argv):
                     validation_writer.add_summary(validation_summary, global_step)
 
                 if global_step % conf.checkpoint_frequency == 0 :
-                    saver.save(sess, "{}{}-{}-ep{}-step".format(conf.checkpoint_directory, experiment, timestamp, i), global_step=global_step)
+                    saver.save(sess, os.path.join(train_logfolderPath, "{}-{}-ep{}.ckpt".format(experiment, timestamp, i)), global_step=global_step)
                 global_step += 1
 
 if __name__ == "__main__":

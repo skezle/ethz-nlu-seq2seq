@@ -11,4 +11,3 @@ class Config:
     num_epochs = 1
     validation_summary_frequency = 10
     checkpoint_frequency = 100
-    checkpoint_directory = 'checkpoints/'
