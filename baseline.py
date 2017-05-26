@@ -9,7 +9,6 @@ import tensorflow.contrib.seq2seq as seq2seq
 from tensorflow.contrib.layers import safe_embedding_lookup_sparse as embedding_lookup_unique
 from tensorflow.contrib.rnn import LSTMCell, LSTMStateTuple, GRUCell
 from data_utility import START_TOKEN_INDEX, END_TOKEN_INDEX, PAD_TOKEN_INDEX
-import helpers
 
 
 class BaselineModel():
@@ -300,11 +299,12 @@ class BaselineModel():
         }
 
     def make_inference_inputs(self, input_seq):
-        inputs_, inputs_length_ = helpers.batch(input_seq)
-        return {
-            self.encoder_inputs: inputs_,
-            self.encoder_inputs_length: inputs_length_,
-        }
+        return {}
+        #inputs_, inputs_length_ = helpers.batch(input_seq)
+        #return {
+        #    self.encoder_inputs: inputs_,
+        #    self.encoder_inputs_length: inputs_length_,
+        #}
 
 
 def make_seq2seq_model(**kwargs):
@@ -327,9 +327,10 @@ def train_on_copy_task(session, model,
                        batches_in_epoch=1000,
                        verbose=True):
 
-    batches = helpers.random_sequences(length_from=length_from, length_to=length_to,
-                                       vocab_lower=vocab_lower, vocab_upper=vocab_upper,
-                                       batch_size=batch_size)
+    #batches = helpers.random_sequences(length_from=length_from, length_to=length_to,
+    #                                   vocab_lower=vocab_lower, vocab_upper=vocab_upper,
+    #                                   batch_size=batch_size)
+    batches = []
     loss_track = []
     try:
         for batch in range(max_batches+1):
