@@ -1,5 +1,6 @@
 import sys, getopt, datetime
 import tensorflow as tf
+from math import ceil
 from random import choice
 from tqdm import tqdm
 from data_utility import *
@@ -61,7 +62,9 @@ def mainFunc(argv):
     
     print("Training network")
     with tf.Session(config=configProto) as sess:
-        global_step = 0
+        global_step = 1
+
+        saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=2)
 
         # Init Tensorboard summaries. This will save Tensorboard information into a different folder at each run.
         timestamp = '{0:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now())
@@ -71,7 +74,7 @@ def mainFunc(argv):
         sess.run(tf.global_variables_initializer())
         for i in range(conf.num_epochs):
             print("Training epoch {}".format(i))
-            for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size), total = len(enc_inputs) / conf.batch_size):
+            for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size), total = ceil(len(enc_inputs) / conf.batch_size)):
 
                 feed_dict = model.make_train_inputs(data_batch, data_sentence_lengths, label_batch, label_sentence_lengths)
                 _, train_summary = sess.run([model.train_op, model.summary_op], feed_dict)
@@ -83,6 +86,9 @@ def mainFunc(argv):
                     validation_feed_dict = model.make_train_inputs(vali_data_batch, vali_data_sentence_lengths, vali_label_batch, vali_label_sentence_lengths)
                     validation_summary = sess.run(model.summary_op, validation_feed_dict)
                     validation_writer.add_summary(validation_summary, global_step)
+
+                if global_step % conf.checkpoint_frequency == 0 :
+                    saver.save(sess, "{}{}-{}-ep{}-step".format(conf.checkpoint_directory, experiment, timestamp, i), global_step=global_step)
                 global_step += 1
 
 if __name__ == "__main__":

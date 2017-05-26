@@ -2,10 +2,10 @@
 data/
 *.tar.gz
 pickled_vars/
-.idea*
 
-# Logs directory
+# Logs and checkpoints directory
 logs/
+checkpoints/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -111,3 +111,4 @@ ENV/
 
 # User-specific IDE settings
 .idea/
+.idea*
