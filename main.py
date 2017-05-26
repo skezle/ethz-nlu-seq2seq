@@ -60,7 +60,7 @@ def mainFunc(argv):
     validation_data = list(bucket_by_sequence_length(validation_enc_inputs, validation_dec_inputs, conf.batch_size))
     
     print("Training network")
-    with tf.Session() as sess:
+    with tf.Session(config=configProto) as sess:
         global_step = 0
 
         # Init Tensorboard summaries. This will save Tensorboard information into a different folder at each run.
