@@ -73,10 +73,12 @@ def mainFunc(argv):
         validation_writer = tf.summary.FileWriter("{}{}-validation-{}".format(conf.log_directory, experiment, timestamp), graph=tf.get_default_graph())
 
         sess.run(tf.global_variables_initializer())
+
         for i in range(conf.num_epochs):
+            batch_in_epoch = 0
             print("Training epoch {}".format(i))
             for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size), total = ceil(len(enc_inputs) / conf.batch_size)):
-
+                batch_in_epoch += 1
                 feed_dict = model.make_train_inputs(data_batch, data_sentence_lengths, label_batch, label_sentence_lengths)
                 _, train_summary = sess.run([model.train_op, model.summary_op], feed_dict)
                 train_writer.add_summary(train_summary, global_step)
@@ -91,6 +93,39 @@ def mainFunc(argv):
                 if global_step % conf.checkpoint_frequency == 0 :
                     saver.save(sess, os.path.join(train_logfolderPath, "{}-{}-ep{}.ckpt".format(experiment, timestamp, i)), global_step=global_step)
                 global_step += 1
+
+
+                print('  minibatch loss: {}'.format(sess.run(model.loss, feed_dict)))
+                for j, (e_in, dec_tar, dec_train_inputs, dec_train_targets, dt_pred) in enumerate(zip(
+                        feed_dict[model.encoder_inputs].T, feed_dict[model.decoder_targets].T,
+                        sess.run(model.decoder_train_inputs, feed_dict).T,
+                        sess.run(model.decoder_train_targets, feed_dict).T,
+                        sess.run(model.decoder_prediction_train, feed_dict).T
+                )):
+                    # print('  sample {}:'.format(j + 1))
+                    # print('    enc input           > {}'.format(e_in))
+                    # print('    dec targets         > {}'.format(dec_tar))
+                    # print('    dec train inputs    > {}'.format(dec_train_inputs))
+                    # print('    dec train targets   > {}'.format(dec_train_targets))
+                    # print('    dec train predicted > {}'.format(dt_pred))
+
+                    print('  sample {}:'.format(j + 1))
+                    print('    enc input           > {}'.format(" ".join(map(lambda x: index_2_word[x], e_in))))
+                    print('    dec targets         > {}'.format(" ".join(map(lambda x: index_2_word[x], dec_tar))))
+                    print('    dec train inputs    > {}'.format(
+                        " ".join(map(lambda x: index_2_word[x], dec_train_inputs))))
+                    print('    dec train targets   > {}'.format(
+                        " ".join(map(lambda x: index_2_word[x], dec_train_targets))))
+                    print('    dec train predicted > {}'.format(" ".join(map(lambda x: index_2_word[x], dt_pred))))
+                    if j >= 0:
+                        break
+                print()
+
+                if global_step == 150:
+                    break
+
+
+
 
 if __name__ == "__main__":
     mainFunc(sys.argv[1:])

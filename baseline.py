@@ -9,6 +9,7 @@ import tensorflow.contrib.seq2seq as seq2seq
 from tensorflow.contrib.layers import safe_embedding_lookup_sparse as embedding_lookup_unique
 from tensorflow.contrib.rnn import LSTMCell, LSTMStateTuple, GRUCell
 from data_utility import START_TOKEN_INDEX, END_TOKEN_INDEX, PAD_TOKEN_INDEX
+from config import Config as conf
 
 
 class BaselineModel():
@@ -284,7 +285,10 @@ class BaselineModel():
         targets = tf.transpose(self.decoder_train_targets, [1, 0])
         self.loss = seq2seq.sequence_loss(logits=logits, targets=targets,
                                           weights=self.loss_weights)
-        self.train_op = tf.train.AdamOptimizer().minimize(self.loss)
+        optimizer = tf.train.AdamOptimizer()
+        gradients, variables = zip(*optimizer.compute_gradients(self.loss))
+        gradients, _ = tf.clip_by_global_norm(gradients, 10.0)
+        self.train_op = optimizer.apply_gradients(zip(gradients, variables))
 
     def _init_summary(self):
         tf.summary.scalar("loss", self.loss)
