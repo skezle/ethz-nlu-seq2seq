@@ -75,6 +75,7 @@ def get_or_create_vocabulary():
 
         sorted_vocab = sorted_vocab[:conf.vocabulary_size-4]
         vocabulary = dict(sorted_vocab)
+
         vocabulary[START_TOKEN] = 1
         vocabulary[END_TOKEN] = 1
         vocabulary[UNK_TOKEN] = 1

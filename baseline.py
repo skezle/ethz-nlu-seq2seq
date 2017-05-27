@@ -12,7 +12,7 @@ from data_utility import START_TOKEN_INDEX, END_TOKEN_INDEX, PAD_TOKEN_INDEX
 
 
 class BaselineModel():
-    """Seq2Seq model usign blocks from new `tf.contrib.seq2seq`."""
+    """Seq2Seq model using blocks from new `tf.contrib.seq2seq`."""
 
     BOS = START_TOKEN_INDEX
     EOS = END_TOKEN_INDEX
@@ -316,7 +316,7 @@ def make_seq2seq_model(**kwargs):
                 bidirectional=True,
                 debug=False)
     args.update(kwargs)
-    return Seq2SeqModel(**args)
+    return BaselineModel(**args)
 
 
 def train_on_copy_task(session, model,
