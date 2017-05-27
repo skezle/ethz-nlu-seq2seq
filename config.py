@@ -11,3 +11,4 @@ class Config:
     num_epochs = 1
     validation_summary_frequency = 10
     checkpoint_frequency = 100
+    max_decoder_inference_length = 200

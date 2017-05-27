@@ -207,9 +207,9 @@ class BaselineModel():
                     output_fn=output_fn,
                     encoder_state=self.encoder_state, ## output of the encoder
                     embeddings=self.embedding_matrix,
-                    start_of_sequence_id=self.EOS,
+                    start_of_sequence_id=self.BOS,
                     end_of_sequence_id=self.EOS,
-                    maximum_length=tf.reduce_max(self.decoder_targets_length) + 1,
+                    maximum_length=conf.max_decoder_inference_length,
                     num_decoder_symbols=self.vocab_size,
                 )
             else:
@@ -243,9 +243,9 @@ class BaselineModel():
                     attention_score_fn=attention_score_fn,
                     attention_construct_fn=attention_construct_fn,
                     embeddings=self.embedding_matrix,
-                    start_of_sequence_id=self.EOS,
+                    start_of_sequence_id=self.BOS,
                     end_of_sequence_id=self.EOS,
-                    maximum_length=tf.reduce_max(self.decoder_targets_length) + 1,
+                    maximum_length=conf.max_decoder_inference_length,
                     num_decoder_symbols=self.vocab_size,
                 )
 
