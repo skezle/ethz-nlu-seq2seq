@@ -209,7 +209,7 @@ class BaselineModel():
                     embeddings=self.embedding_matrix,
                     start_of_sequence_id=self.EOS,
                     end_of_sequence_id=self.EOS,
-                    maximum_length=tf.reduce_max(self.encoder_inputs_length) + 3,
+                    maximum_length=tf.reduce_max(self.decoder_targets_length) + 1,
                     num_decoder_symbols=self.vocab_size,
                 )
             else:
@@ -245,7 +245,7 @@ class BaselineModel():
                     embeddings=self.embedding_matrix,
                     start_of_sequence_id=self.EOS,
                     end_of_sequence_id=self.EOS,
-                    maximum_length=tf.reduce_max(self.encoder_inputs_length) + 3,
+                    maximum_length=tf.reduce_max(self.decoder_targets_length) + 1,
                     num_decoder_symbols=self.vocab_size,
                 )
 
