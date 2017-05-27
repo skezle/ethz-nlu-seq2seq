@@ -95,37 +95,5 @@ def mainFunc(argv):
                 global_step += 1
 
 
-                print('  minibatch loss: {}'.format(sess.run(model.loss, feed_dict)))
-                for j, (e_in, dec_tar, dec_train_inputs, dec_train_targets, dt_pred) in enumerate(zip(
-                        feed_dict[model.encoder_inputs].T, feed_dict[model.decoder_targets].T,
-                        sess.run(model.decoder_train_inputs, feed_dict).T,
-                        sess.run(model.decoder_train_targets, feed_dict).T,
-                        sess.run(model.decoder_prediction_train, feed_dict).T
-                )):
-                    # print('  sample {}:'.format(j + 1))
-                    # print('    enc input           > {}'.format(e_in))
-                    # print('    dec targets         > {}'.format(dec_tar))
-                    # print('    dec train inputs    > {}'.format(dec_train_inputs))
-                    # print('    dec train targets   > {}'.format(dec_train_targets))
-                    # print('    dec train predicted > {}'.format(dt_pred))
-
-                    print('  sample {}:'.format(j + 1))
-                    print('    enc input           > {}'.format(" ".join(map(lambda x: index_2_word[x], e_in))))
-                    print('    dec targets         > {}'.format(" ".join(map(lambda x: index_2_word[x], dec_tar))))
-                    print('    dec train inputs    > {}'.format(
-                        " ".join(map(lambda x: index_2_word[x], dec_train_inputs))))
-                    print('    dec train targets   > {}'.format(
-                        " ".join(map(lambda x: index_2_word[x], dec_train_targets))))
-                    print('    dec train predicted > {}'.format(" ".join(map(lambda x: index_2_word[x], dt_pred))))
-                    if j >= 0:
-                        break
-                print()
-
-                if global_step == 150:
-                    break
-
-
-
-
 if __name__ == "__main__":
     mainFunc(sys.argv[1:])
