@@ -298,13 +298,11 @@ class BaselineModel():
             self.decoder_targets_length: target_seq_len,
         }
 
-    def make_inference_inputs(self, input_seq):
-        return {}
-        #inputs_, inputs_length_ = helpers.batch(input_seq)
-        #return {
-        #    self.encoder_inputs: inputs_,
-        #    self.encoder_inputs_length: inputs_length_,
-        #}
+    def make_inference_inputs(self, input_seq, input_seq_len):
+        return {
+            self.encoder_inputs: input_seq,
+            self.encoder_inputs_length: inputs_seq_len,
+        }
 
 
 def make_seq2seq_model(**kwargs):
