@@ -301,7 +301,7 @@ class BaselineModel():
     def make_inference_inputs(self, input_seq, input_seq_len):
         return {
             self.encoder_inputs: input_seq,
-            self.encoder_inputs_length: inputs_seq_len,
+            self.encoder_inputs_length: input_seq_len,
         }
 
 
