@@ -182,7 +182,7 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size):
 
     assert len(enc_inputs) == len(dec_inputs)
     enc_dec = zip(enc_inputs, dec_inputs)
-    sorted_enc_dec_pairs = sorted(enc_dec, key=lambda inputs: len(inputs[0]))
+    sorted_enc_dec_pairs = sorted(enc_dec, key=lambda inputs: (len(inputs[0]), len(inputs[1])))
 
     enc_inputs, dec_inputs = zip(*sorted_enc_dec_pairs)
 
