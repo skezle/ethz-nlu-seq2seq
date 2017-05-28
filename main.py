@@ -1,14 +1,30 @@
-import sys, getopt, datetime
-import tensorflow as tf
-from math import ceil
+import datetime
+import getopt
+import sys
+import os.path
+import word2vec
 from random import choice
+
+import tensorflow as tf
 from tqdm import tqdm
-from data_utility import *
+
 from baseline import BaselineModel
+from data_utility import *
+
+
 
 ###
 # Graph execution
 ###
+from load_embeddings import load_embedding
+
+def make_directories():
+    print("Creating directories {} and {}".format(conf.word2vec_directory, conf.pickled_vars_directory))
+    if not os.path.exists(conf.word2vec_directory):
+        os.makedirs(conf.word2vec_directory)
+    if not os.path.exists(conf.pickled_vars_directory):
+        os.makedirs(conf.pickled_vars_directory)
+
 def mainFunc(argv):
     def printUsage():
         print('main.py -n <num_cores> -x <experiment>')
@@ -19,7 +35,7 @@ def mainFunc(argv):
     experiment = ""
     # Command line argument handling
     try:
-        opts, args = getopt.getopt(argv,"n:x:",["num_cores=", "experiment="])
+        opts, args = getopt.getopt(argv, "n:x:", ["num_cores=", "experiment="])
     except getopt.GetoptError:
         printUsage()
         sys.exit(2)
@@ -44,6 +60,8 @@ def mainFunc(argv):
     else:
         configProto = tf.ConfigProto()
 
+    make_directories()
+
     print("Initializing model")
     model = None
     if experiment == "baseline":
@@ -67,12 +85,29 @@ def mainFunc(argv):
         saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=2)
 
         # Init Tensorboard summaries. This will save Tensorboard information into a different folder at each run.
-        timestamp = '{0:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now())
-        train_logfolderPath= os.path.join(conf.log_directory, "{}-training-{}".format(experiment, timestamp))
-        train_writer = tf.summary.FileWriter(train_logfolderPath, graph=tf.get_default_graph())
-        validation_writer = tf.summary.FileWriter("{}{}-validation-{}".format(conf.log_directory, experiment, timestamp), graph=tf.get_default_graph())
+        timestamp           =   '{0:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now())
+        train_logfolderPath =   os.path.join(conf.log_directory, "{}-training-{}".format(experiment, timestamp))
+        train_writer        =   tf.summary.FileWriter(train_logfolderPath, graph=tf.get_default_graph())
+        validation_writer   =   tf.summary.FileWriter("{}{}-validation-{}".format(conf.log_directory, experiment, timestamp), graph=tf.get_default_graph())
 
         sess.run(tf.global_variables_initializer())
+
+        if conf.use_word2vec:
+
+            if not os.path.isfile(conf.word2vec_path):
+                word2vec.train_embeddings(save_to_path=conf.word2vec_path,
+                                          embedding_size=conf.word_embedding_size,
+                                          minimal_frequency=conf.word2vec_min_word_freq,
+                                          train_path=TRAINING_FILEPATH,
+                                          validation_path=VALIDATION_FILEPATH,
+                                          num_workers=conf.word2vec_workers_count)
+
+            load_embedding(sess,
+                           get_or_create_vocabulary(),
+                           model.embedding_matrix,
+                           conf.word2vec_path,
+                           conf.word_embedding_size,
+                           conf.vocabulary_size)
 
         for i in range(conf.num_epochs):
             batch_in_epoch = 0
@@ -121,8 +156,8 @@ def mainFunc(argv):
                         break
                 print()
 
-                if global_step == 150:
-                    break
+                # if global_step == 150:
+                #     break
 
 
 

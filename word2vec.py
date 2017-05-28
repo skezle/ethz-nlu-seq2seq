@@ -14,7 +14,6 @@ EMBEDDING_SIZE = 200
 MINIMAL_WORD_FREQUENCY = 1
 
 
-
 def load_sentences(train_path, validation_path=None):
     sentences = []
 
@@ -40,11 +39,15 @@ def load_sentences(train_path, validation_path=None):
     return sentences
 
 
-def train_embeddings(save_to_path):
-    model = gensim.models.Word2Vec(load_sentences(TRAIN_FILE, VALIDATION_FILE),
-                                   size=EMBEDDING_SIZE,
-                                   min_count=MINIMAL_WORD_FREQUENCY,
-                                   workers=4)
+def train_embeddings(save_to_path, embedding_size, minimal_frequency, train_path, validation_path=None, num_workers=4):
+    print("Training word2vec model with following parameters: ")
+    print("\t dataset: " + train_path + ", validation set used: " + validation_path)
+    print("\t word embeddings size: " + str(embedding_size))
+    print("\t word embeddings saved on path: {}".format(save_to_path))
+    model = gensim.models.Word2Vec(load_sentences(train_path, validation_path),
+                                   size=embedding_size,
+                                   min_count=minimal_frequency,
+                                   workers=num_workers)
     model.save(save_to_path)
 
 
