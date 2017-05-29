@@ -11,20 +11,12 @@ from tqdm import tqdm
 from baseline import BaselineModel
 from data_utility import *
 
+from load_embeddings import load_embedding
 
 
 ###
 # Graph execution
 ###
-from load_embeddings import load_embedding
-
-def make_directories():
-    print("Creating directories {} and {}".format(conf.word2vec_directory, conf.pickled_vars_directory))
-    if not os.path.exists(conf.word2vec_directory):
-        os.makedirs(conf.word2vec_directory)
-    if not os.path.exists(conf.pickled_vars_directory):
-        os.makedirs(conf.pickled_vars_directory)
-
 def mainFunc(argv):
     def printUsage():
         print('main.py -n <num_cores> -x <experiment>')
@@ -78,7 +70,7 @@ def mainFunc(argv):
     validation_enc_inputs, validation_dec_inputs, _, _ = get_data_by_type('eval')
     validation_data = list(bucket_by_sequence_length(validation_enc_inputs, validation_dec_inputs, conf.batch_size))
     
-    print("Training network")
+    print("Starting TensorFlow session")
     with tf.Session(config=configProto) as sess:
         global_step = 1
 
@@ -93,7 +85,7 @@ def mainFunc(argv):
         sess.run(tf.global_variables_initializer())
 
         if conf.use_word2vec:
-
+            print("Using word2vec embeddings")
             if not os.path.isfile(conf.word2vec_path):
                 word2vec.train_embeddings(save_to_path=conf.word2vec_path,
                                           embedding_size=conf.word_embedding_size,
@@ -101,7 +93,7 @@ def mainFunc(argv):
                                           train_path=TRAINING_FILEPATH,
                                           validation_path=VALIDATION_FILEPATH,
                                           num_workers=conf.word2vec_workers_count)
-
+            print("Loading word2vec embeddings")
             load_embedding(sess,
                            get_or_create_vocabulary(),
                            model.embedding_matrix,
@@ -109,6 +101,7 @@ def mainFunc(argv):
                            conf.word_embedding_size,
                            conf.vocabulary_size)
 
+        print("Starting training")
         for i in range(conf.num_epochs):
             batch_in_epoch = 0
             print("Training epoch {}".format(i))

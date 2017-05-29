@@ -210,3 +210,9 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
         decoder_batch = array(decoder_batch).transpose()
         yield encoder_batch, encoder_sequence_lengths, decoder_batch, decoder_sequence_lengths
 
+def make_directories():
+    print("Creating directories {} and {}".format(conf.word2vec_directory, conf.pickled_vars_directory))
+    if not os.path.exists(conf.word2vec_directory):
+        os.makedirs(conf.word2vec_directory)
+    if not os.path.exists(conf.pickled_vars_directory):
+        os.makedirs(conf.pickled_vars_directory)
