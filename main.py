@@ -14,12 +14,14 @@ def mainFunc(argv):
         print('main.py -n <num_cores> -x <experiment>')
         print('num_cores = Number of cores requested from the cluster. Set to -1 to leave unset')
         print('experiment = experiment setup that should be executed. e.g \'baseline\'')
+        print('tag = optional tag or name to distinguish the runs, e.g. \'bidirect3layers\' ')
 
     num_cores = -1
     experiment = ""
+    tag = None
     # Command line argument handling
     try:
-        opts, args = getopt.getopt(argv,"n:x:",["num_cores=", "experiment="])
+        opts, args = getopt.getopt(argv,"n:x:t:",["num_cores=", "experiment=", "tag="])
     except getopt.GetoptError:
         printUsage()
         sys.exit(2)
@@ -35,6 +37,8 @@ def mainFunc(argv):
             else:
                 printUsage()
                 sys.exit(2)
+        elif opt in ("-t", "--tag"):
+            tag = arg
 
     print("Executing experiment {} with {} CPU cores".format(experiment, num_cores))
     if num_cores != -1:
@@ -68,9 +72,12 @@ def mainFunc(argv):
 
         # Init Tensorboard summaries. This will save Tensorboard information into a different folder at each run.
         timestamp = '{0:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now())
-        train_logfolderPath= os.path.join(conf.log_directory, "{}-training-{}".format(experiment, timestamp))
+        tag_string = ""
+        if tag is not None:
+            tag_string= "-" + tag
+        train_logfolderPath= os.path.join(conf.log_directory, "{}{}-training-{}".format(experiment, tag_string, timestamp))
         train_writer = tf.summary.FileWriter(train_logfolderPath, graph=tf.get_default_graph())
-        validation_writer = tf.summary.FileWriter("{}{}-validation-{}".format(conf.log_directory, experiment, timestamp), graph=tf.get_default_graph())
+        validation_writer = tf.summary.FileWriter("{}{}{}-validation-{}".format(conf.log_directory, experiment, tag_string, timestamp), graph=tf.get_default_graph())
 
         sess.run(tf.global_variables_initializer())
 
@@ -91,7 +98,7 @@ def mainFunc(argv):
                     validation_writer.add_summary(validation_summary, global_step)
 
                 if global_step % conf.checkpoint_frequency == 0 :
-                    saver.save(sess, os.path.join(train_logfolderPath, "{}-{}-ep{}.ckpt".format(experiment, timestamp, i)), global_step=global_step)
+                    saver.save(sess, os.path.join(train_logfolderPath, "{}{}-{}-ep{}.ckpt".format(experiment, tag_string, timestamp, i)), global_step=global_step)
                 global_step += 1
 
 
