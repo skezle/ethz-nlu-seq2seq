@@ -19,7 +19,6 @@ def load_embedding(session, vocab, emb, path, dim_embedding, vocab_size):
     print("Model vocab length is {}".format(len(model.wv.vocab)))
     for idx, tok in enumerate(vocab.keys()):
         if tok in model.wv.vocab:
-            print("tok = {} idx = {}".format(tok, idx))
             external_embedding[idx] = model[tok]
             matches += 1
         else:
