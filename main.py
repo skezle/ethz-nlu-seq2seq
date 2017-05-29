@@ -2,7 +2,7 @@ import datetime
 import getopt
 import sys
 import os.path
-import word2vec
+from word2vec.word2vec import *
 from random import choice
 
 import tensorflow as tf
@@ -11,7 +11,7 @@ from tqdm import tqdm
 from baseline import BaselineModel
 from data_utility import *
 
-from load_embeddings import load_embedding
+from word2vec.load_embeddings import load_embedding
 
 
 ###
@@ -87,7 +87,7 @@ def mainFunc(argv):
         if conf.use_word2vec:
             print("Using word2vec embeddings")
             if not os.path.isfile(conf.word2vec_path):
-                word2vec.train_embeddings(save_to_path=conf.word2vec_path,
+                train_embeddings(save_to_path=conf.word2vec_path,
                                           embedding_size=conf.word_embedding_size,
                                           minimal_frequency=conf.word2vec_min_word_freq,
                                           train_path=TRAINING_FILEPATH,
