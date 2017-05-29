@@ -82,6 +82,13 @@ def get_or_create_vocabulary():
         vocabulary[UNK_TOKEN] = 1
         vocabulary[PAD_TOKEN] = 1
 
+        if not os.path.exists(os.path.dirname(VOCABULARY_FILEPATH)):
+            try:
+                os.makedirs(os.path.dirname(VOCABULARY_FILEPATH ))
+            except OSError as exc: # Guard against race condition
+                if exc.errno != errno.EEXIST:
+                    raise
+
         pickle.dump(vocabulary, open(VOCABULARY_FILEPATH, 'wb'))
         train_file.close()
     return vocabulary
@@ -116,6 +123,19 @@ def get_or_create_dicts_from_train_data():
                     word_2_index[word] = index
                     index_2_word[index] = word
                     index += 1
+
+        if not os.path.exists(os.path.dirname(W2I_FILEPATH)):
+            try:
+                os.makedirs(os.path.dirname(W2I_FILEPATH))
+            except OSError as exc: # Guard against race condition
+                if exc.errno != errno.EEXIST:
+                    raise
+        if not os.path.exists(os.path.dirname(I2W_FILEPATH)):
+            try:
+                os.makedirs(os.path.dirname(I2W_FILEPATH))
+            except OSError as exc: # Guard against race condition
+                if exc.errno != errno.EEXIST:
+                    raise
 
         pickle.dump(word_2_index, open(W2I_FILEPATH, 'wb'))
         pickle.dump(index_2_word, open(I2W_FILEPATH, 'wb'))
