@@ -4,6 +4,7 @@ import operator
 from numpy import array, transpose
 from math import ceil
 from config import Config as conf
+from random import shuffle
 
 START_TOKEN = "<bos>"
 END_TOKEN = "<eos>"
@@ -178,7 +179,7 @@ def get_data_by_type(t):
 ###
 # Custom function for bucketing
 ###
-def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True):
+def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True, shuffle_batches=True):
 
     assert len(enc_inputs) == len(dec_inputs)
 
@@ -191,6 +192,7 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
     
     num_batches = ceil(len(enc_inputs) / batch_size)    
 
+    all_batches = []
     for batch_num in range(num_batches):
         encoder_sequence_lengths = [len(sentence) 
                                     for sentence
@@ -208,5 +210,9 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
                          for i, sentence
                          in enumerate(dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
         decoder_batch = array(decoder_batch).transpose()
-        yield encoder_batch, encoder_sequence_lengths, decoder_batch, decoder_sequence_lengths
+        all_batches.append((encoder_batch, encoder_sequence_lengths, decoder_batch, decoder_sequence_lengths))
 
+    if shuffle_batches:
+        shuffle(all_batches)
+    for i in range(num_batches):
+        yield all_batches[i]

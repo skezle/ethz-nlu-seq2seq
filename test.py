@@ -73,7 +73,7 @@ def mainFunc(argv):
         batch_in_epoch = 0
         print("Testing:")
         for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(
-                bucket_by_sequence_length(validation_enc_inputs, _, conf.batch_size, sort_data=False),
+                bucket_by_sequence_length(validation_enc_inputs, _, conf.batch_size, sort_data=False, shuffle_batches=False),
                 total=ceil(len(validation_enc_inputs) / conf.batch_size)):
 
             batch_in_epoch += 1
