@@ -150,6 +150,9 @@ def get_data_by_type(t):
 
     if t=='train':
         filename = TRAINING_TUPLES_FILEPATH
+
+        if not os.path.isfile(filename):
+            triples_to_tuples(TRAINING_FILEPATH, filename)
     elif t=='eval':
 
         filename = VALIDATION_TUPLES_FILEPATH
