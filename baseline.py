@@ -20,9 +20,7 @@ class BaselineModel():
     PAD = PAD_TOKEN_INDEX
     def __init__(self, encoder_cell, decoder_cell, vocab_size, embedding_size,
                  bidirectional=True,
-                 attention=False,
-                 debug=False):
-        self.debug = debug
+                 attention=False):
         self.bidirectional = bidirectional
         self.attention = attention ## used when initialising the decoder
 
@@ -42,10 +40,7 @@ class BaselineModel():
     def _make_graph(self):
         tf.reset_default_graph()
 
-        if self.debug:
-            self._init_debug_inputs()
-        else:
-            self._init_placeholders()
+        self._init_placeholders()
 
         self._init_decoder_train_connectors()
         self._init_embeddings()
@@ -60,17 +55,6 @@ class BaselineModel():
         self._init_optimizer()
 
         self._init_summary()
-    def _init_debug_inputs(self):
-        """ Everything is time-major """
-        x = [[5, 6, 7],
-             [7, 6, 0],
-             [0, 7, 0]]
-        xl = [2, 3, 1]
-        self.encoder_inputs = tf.constant(x, dtype=tf.int32, name='encoder_inputs')
-        self.encoder_inputs_length = tf.constant(xl, dtype=tf.int32, name='encoder_inputs_length')
-
-        self.decoder_targets = tf.constant(x, dtype=tf.int32, name='decoder_targets')
-        self.decoder_targets_length = tf.constant(xl, dtype=tf.int32, name='decoder_targets_length')
 
     def _init_placeholders(self):
         """ Everything is time-major """
@@ -307,55 +291,3 @@ class BaselineModel():
             self.encoder_inputs: input_seq,
             self.encoder_inputs_length: input_seq_len,
         }
-
-
-def make_seq2seq_model(**kwargs):
-    args = dict(encoder_cell=LSTMCell(10),
-                decoder_cell=LSTMCell(20),
-                vocab_size=10,
-                embedding_size=10,
-                attention=True,
-                bidirectional=True,
-                debug=False)
-    args.update(kwargs)
-    return BaselineModel(**args)
-
-
-def train_on_copy_task(session, model,
-                       length_from=3, length_to=8,
-                       vocab_lower=2, vocab_upper=10,
-                       batch_size=100,
-                       max_batches=5000,
-                       batches_in_epoch=1000,
-                       verbose=True):
-
-    #batches = helpers.random_sequences(length_from=length_from, length_to=length_to,
-    #                                   vocab_lower=vocab_lower, vocab_upper=vocab_upper,
-    #                                   batch_size=batch_size)
-    batches = []
-    loss_track = []
-    try:
-        for batch in range(max_batches+1):
-            batch_data = next(batches)
-            fd = model.make_train_inputs(batch_data, batch_data)
-            _, l = session.run([model.train_op, model.loss], fd)
-            loss_track.append(l)
-
-            if verbose:
-                if batch == 0 or batch % batches_in_epoch == 0:
-                    print('batch {}'.format(batch))
-                    print('  minibatch loss: {}'.format(session.run(model.loss, fd)))
-                    for i, (e_in, dt_pred) in enumerate(zip(
-                            fd[model.encoder_inputs].T,
-                            session.run(model.decoder_prediction_train, fd).T
-                        )):
-                        print('  sample {}:'.format(i + 1))
-                        print('    enc input           > {}'.format(e_in))
-                        print('    dec train predicted > {}'.format(dt_pred))
-                        if i >= 2:
-                            break
-                    print()
-    except KeyboardInterrupt:
-        print('training interrupted')
-
-    return loss_track

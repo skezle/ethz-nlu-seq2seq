@@ -56,8 +56,7 @@ def mainFunc(argv):
                               vocab_size=conf.vocabulary_size,
                               embedding_size=conf.word_embedding_size,
                               bidirectional=False,
-                              attention=False,
-                              debug=False)
+                              attention=False)
     assert model != None
     enc_inputs, dec_inputs, word_2_index, index_2_word = get_data_by_type('train')
     # Materialize validation data
