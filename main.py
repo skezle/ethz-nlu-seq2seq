@@ -70,7 +70,7 @@ def mainFunc(argv):
     # Materialize validation data
     validation_enc_inputs, validation_dec_inputs, _, _ = get_data_by_type('eval')
     validation_data = list(bucket_by_sequence_length(validation_enc_inputs, validation_dec_inputs, conf.batch_size))
-    
+
     print("Starting TensorFlow session")
     with tf.Session(config=configProto) as sess:
         global_step = 1
@@ -116,7 +116,10 @@ def mainFunc(argv):
                 _, train_summary = sess.run([model.train_op, model.summary_op], feed_dict)
                 train_writer.add_summary(train_summary, global_step)
 
-                if global_step % conf.validation_summary_frequency == 0:#
+                decoder_outputs_train = sess.run(model.decoder_outputs_train, feed_dict)
+                print("shape of decoder outputs: {}".format(decoder_outputs_train.shape))
+
+                if global_step % conf.validation_summary_frequency == 0:
                     # Randomly choose a batch from the validation dataset and use it for loss calculation
                     vali_data_batch, vali_data_sentence_lengths, vali_label_batch, vali_label_sentence_lengths = choice(validation_data)
                     validation_feed_dict = model.make_train_inputs(vali_data_batch, vali_data_sentence_lengths, vali_label_batch, vali_label_sentence_lengths)

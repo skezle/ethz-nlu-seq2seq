@@ -172,7 +172,7 @@ def get_data_by_type(t):
         decoder_inputs = pickle.load(open(DECODER_INPUT_FILEPATH, 'rb'))
     except:
         encoder_inputs = []
-        decoder_inputs = [] 
+        decoder_inputs = []
 
         f = open(filename, 'r')
         for line in f:
@@ -212,12 +212,12 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
 
         enc_inputs, dec_inputs = zip(*sorted_enc_dec_pairs)
     # else we keep the data unsorted
-    
-    num_batches = ceil(len(enc_inputs) / batch_size)    
 
+    num_batches = ceil(len(enc_inputs) / batch_size)
+    
     all_batches = []
-    for batch_num in range(num_batches):
-        encoder_sequence_lengths = [len(sentence) 
+    for batch_num in range(int(num_batches)):
+        encoder_sequence_lengths = [len(sentence)
                                     for sentence
                                     in enc_inputs[batch_num*batch_size:(batch_num+1)*batch_size]]
         max_len_enc = max(encoder_sequence_lengths)
@@ -225,7 +225,7 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
                          for i, sentence
                          in enumerate(enc_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
         encoder_batch = array(encoder_batch).transpose()
-        decoder_sequence_lengths = [len(sentence) 
+        decoder_sequence_lengths = [len(sentence)
                                     for sentence
                                     in dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size]]
         max_len_dec = max(decoder_sequence_lengths)
@@ -237,6 +237,5 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
 
     if shuffle_batches:
         shuffle(all_batches)
-    for i in range(num_batches):
+    for i in range(int(num_batches)):
         yield all_batches[i]
-

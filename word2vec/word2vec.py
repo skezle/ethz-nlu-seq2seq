@@ -2,6 +2,7 @@ import gensim
 import logging
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
+import matplotlib
 import matplotlib.pyplot as plt
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
@@ -91,6 +92,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
