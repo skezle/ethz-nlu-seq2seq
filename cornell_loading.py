@@ -13,6 +13,10 @@ import re
 #                   'L540476', 'L540816', 'L619064', 'L50129', 'L78957']
 
 def load_conversations(filename, bullshit_lines, script):
+
+    matching_quotationmarks = re.compile('\"(.*)\"')
+    single_quotationmarks = re.compile('\"(.*)')
+
     f = open(filename, 'r')
     convID = 0
     conversations = {}
@@ -29,6 +33,8 @@ def load_conversations(filename, bullshit_lines, script):
                     (lineIDs[i + 1] not in bullshit_lines)):
                 d1 = re.sub(r"([\w/'+$\s-]+|[^\w/'+$\s-]+)\s*", r"\1 ", script[lineIDs[i]])
                 d2 = re.sub(r"([\w/'+$\s-]+|[^\w/'+$\s-]+)\s*", r"\1 ", script[lineIDs[i+1]])
+                d1 = single_quotationmarks.sub(r"``\1", matching_quotationmarks.sub(r"``\1''", line))
+                d2 = single_quotationmarks.sub(r"``\1", matching_quotationmarks.sub(r"``\1''", line))
                 print(d1)
                 print(d2)
                 dlg = [d1, d2]
