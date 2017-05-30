@@ -13,7 +13,6 @@ class Config:
     validation_summary_frequency = 10
     checkpoint_frequency = 100
     max_decoder_inference_length = 200
-    pickled_vars_directory = "pickled_vars"
 
     use_word2vec = True
     word_embedding_size = 100
