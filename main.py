@@ -62,7 +62,7 @@ def mainFunc(argv):
     # Materialize validation data
     validation_enc_inputs, validation_dec_inputs, _, _ = get_data_by_type('eval')
     validation_data = list(bucket_by_sequence_length(validation_enc_inputs, validation_dec_inputs, conf.batch_size))
-    
+
     print("Training network")
     with tf.Session(config=configProto) as sess:
         global_step = 1
@@ -85,6 +85,7 @@ def mainFunc(argv):
             print("Training epoch {}".format(i))
             for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size), total = ceil(len(enc_inputs) / conf.batch_size)):
                 batch_in_epoch += 1
+                print("data batch size: {}".format(data_batch.shape))
                 feed_dict = model.make_train_inputs(data_batch, data_sentence_lengths, label_batch, label_sentence_lengths)
                 _, train_summary = sess.run([model.train_op, model.summary_op], feed_dict)
                 train_writer.add_summary(train_summary, global_step)

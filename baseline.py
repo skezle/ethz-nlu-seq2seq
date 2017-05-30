@@ -99,7 +99,7 @@ class BaselineModel():
 
             decoder_train_targets = tf.concat([self.decoder_targets, PAD_SLICE], axis=0)
             decoder_train_targets_seq_len, _ = tf.unstack(tf.shape(decoder_train_targets))
-            
+
             eos_multiplication_mask = tf.one_hot(self.decoder_train_length - 1,
                                                         decoder_train_targets_seq_len,
                                                         on_value=0, off_value=1,
@@ -116,7 +116,7 @@ class BaselineModel():
                                             tf.multiply(decoder_train_targets,
                                             eos_multiplication_mask),
                                             eos_addition_mask)
-            
+
             self.decoder_train_targets = decoder_train_targets
 
             self.loss_weights = tf.ones([
@@ -125,23 +125,24 @@ class BaselineModel():
             ], dtype=tf.float32, name="loss_weights")
 
     def _init_embeddings(self):
-        with tf.variable_scope("embedding") as scope:
+        with tf.device("/cpu:0"):
+            with tf.variable_scope("embedding") as scope:
 
-            # Uniform(-sqrt(3), sqrt(3)) has variance=1.
-            sqrt3 = math.sqrt(3)
-            initializer = tf.random_uniform_initializer(-sqrt3, sqrt3)
+                # Uniform(-sqrt(3), sqrt(3)) has variance=1.
+                sqrt3 = math.sqrt(3)
+                initializer = tf.random_uniform_initializer(-sqrt3, sqrt3)
 
-            self.embedding_matrix = tf.get_variable(
-                name="embedding_matrix",
-                shape=[self.vocab_size, self.embedding_size],
-                initializer=initializer,
-                dtype=tf.float32)
+                self.embedding_matrix = tf.get_variable(
+                    name="embedding_matrix",
+                    shape=[self.vocab_size, self.embedding_size],
+                    initializer=initializer,
+                    dtype=tf.float32)
 
-            self.encoder_inputs_embedded = tf.nn.embedding_lookup(
-                self.embedding_matrix, self.encoder_inputs)
+                self.encoder_inputs_embedded = tf.nn.embedding_lookup(
+                    self.embedding_matrix, self.encoder_inputs)
 
-            self.decoder_train_inputs_embedded = tf.nn.embedding_lookup(
-                self.embedding_matrix, self.decoder_train_inputs)
+                self.decoder_train_inputs_embedded = tf.nn.embedding_lookup(
+                    self.embedding_matrix, self.decoder_train_inputs)
 
     def _init_simple_encoder(self):
         with tf.variable_scope("Encoder") as scope:
@@ -234,6 +235,7 @@ class BaselineModel():
                     num_decoder_symbols=self.vocab_size,
                 )
 
+            ## Training
             (self.decoder_outputs_train,
              self.decoder_state_train,
              self.decoder_context_state_train) = (
@@ -252,6 +254,7 @@ class BaselineModel():
 
             scope.reuse_variables()
 
+            ## Prediction
             (self.decoder_logits_inference,
              self.decoder_state_inference,
              self.decoder_context_state_inference) = (
