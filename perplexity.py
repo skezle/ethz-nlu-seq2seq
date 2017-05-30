@@ -4,6 +4,7 @@ from data_utility import get_data_by_type, triples_to_tuples, apply_w2i_to_corpu
     get_w2i_i2w_dicts, bucket_by_sequence_length
 from baseline import BaselineModel
 from config import Config as conf
+import numpy as np
 
 TUPLES_OUTPUT_FILEPATH = "./perplexity_tuples.txt"
 
@@ -86,14 +87,40 @@ def mainFunc(argv):
         vocabulary = get_vocabulary()
         enc_inputs, dec_inputs = apply_w2i_to_corpus_tuples(tuples, vocabulary, w2i)
 
+        perplexities = []
+
         for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size, sort_data=False, shuffle_batches=False):
+
+            print("Data_batch shape is: {}".format(data_batch.shape))
+            print("Data sequence length is: {}".format(len(data_sentence_lengths)))
+            print("Label_batch shape is: {}".format(label_batch.shape))
+            print("Label sentence length is: {}".format(len(label_sentence_lengths)))
 
             feed_dict = model.make_train_inputs(data_batch, data_sentence_lengths, label_batch, label_sentence_lengths)
 
-            softmax_predictions = sess.run(model.decoder_softmax_train, feed_dict).T
-            print(len(softmax_predictions))
+            softmax_predictions, logits_prediction = sess.run([model.decoder_softmax_train, model.decoder_logits_train], feed_dict)
+            print(logits_prediction.shape)
+            print(softmax_predictions.shape)
+
+            for sentID in range(len(label_sentence_lengths)):
+                total_prob = 0
+                for wordID in range(label_sentence_lengths[sentID]):
+                    dict_dist = softmax_predictions[wordID,sentID]
+                    ground_truth_word_index = label_batch[wordID, sentID]
+                    prob = dict_dist[ground_truth_word_index]
+                    total_prob = total_prob + np.log(prob)
+                perplexity = 2**(-0.5*total_prob)
+                perplexities.append(perplexity)
             
             global_step += 1
+
+        f_perplexities = open(TUPLES_OUTPUT_FILEPATH, 'w')
+        for i in range(len(perplexities)):
+            if i%2 == 0:
+                f_perplexities.write("{} ".format(perplexities[i]))
+            else:
+                f_perplexities.write("{}\n".format(perplexities[i]))
+        f_perplexities.close()
 
 if __name__ == "__main__":
     mainFunc(sys.argv[1:])
