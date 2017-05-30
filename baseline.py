@@ -185,7 +185,11 @@ class BaselineModel():
     def _init_decoder(self):
         with tf.variable_scope("Decoder") as scope:
             def output_fn(outputs):
-                return tf.contrib.layers.linear(outputs, self.vocab_size, scope=scope)
+                ##return tf.contrib.layers.linear(outputs, self.vocab_size, scope=scope)
+                return tf.contrib.layers.fully_connected(inputs=outputs,
+                                                         num_outputs=self.vocab_size,
+                                                         activation_fn=None, ## linear
+                                                         scope=scope) 
 
             if not self.attention:
                 decoder_fn_train = seq2seq.simple_decoder_fn_train(encoder_state=self.encoder_state)
