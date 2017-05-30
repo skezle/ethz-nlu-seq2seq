@@ -1,10 +1,18 @@
-import sys, getopt, datetime
-import tensorflow as tf
-from math import ceil
+import datetime
+import getopt
+import sys
+import os.path
+from word2vec.word2vec import *
 from random import choice
+
+import tensorflow as tf
 from tqdm import tqdm
-from data_utility import *
+
 from baseline import BaselineModel
+from data_utility import *
+
+from word2vec.load_embeddings import load_embedding
+
 
 ###
 # Graph execution
@@ -63,7 +71,7 @@ def mainFunc(argv):
     validation_enc_inputs, validation_dec_inputs, _, _ = get_data_by_type('eval')
     validation_data = list(bucket_by_sequence_length(validation_enc_inputs, validation_dec_inputs, conf.batch_size))
     
-    print("Training network")
+    print("Starting TensorFlow session")
     with tf.Session(config=configProto) as sess:
         global_step = 1
 
@@ -74,12 +82,30 @@ def mainFunc(argv):
         tag_string = ""
         if tag is not None:
             tag_string= "-" + tag
-        train_logfolderPath= os.path.join(conf.log_directory, "{}{}-training-{}".format(experiment, tag_string, timestamp))
-        train_writer = tf.summary.FileWriter(train_logfolderPath, graph=tf.get_default_graph())
-        validation_writer = tf.summary.FileWriter("{}{}{}-validation-{}".format(conf.log_directory, experiment, tag_string, timestamp), graph=tf.get_default_graph())
+        train_logfolderPath = os.path.join(conf.log_directory, "{}{}-training-{}".format(experiment, tag_string, timestamp))
+        train_writer        = tf.summary.FileWriter(train_logfolderPath, graph=tf.get_default_graph())
+        validation_writer   = tf.summary.FileWriter("{}{}{}-validation-{}".format(conf.log_directory, experiment, tag_string, timestamp), graph=tf.get_default_graph())
 
         sess.run(tf.global_variables_initializer())
 
+        if conf.use_word2vec:
+            print("Using word2vec embeddings")
+            if not os.path.isfile(conf.word2vec_path):
+                train_embeddings(save_to_path=conf.word2vec_path,
+                                          embedding_size=conf.word_embedding_size,
+                                          minimal_frequency=conf.word2vec_min_word_freq,
+                                          train_path=TRAINING_FILEPATH,
+                                          validation_path=VALIDATION_FILEPATH,
+                                          num_workers=conf.word2vec_workers_count)
+            print("Loading word2vec embeddings")
+            load_embedding(sess,
+                           get_or_create_vocabulary(),
+                           model.embedding_matrix,
+                           conf.word2vec_path,
+                           conf.word_embedding_size,
+                           conf.vocabulary_size)
+
+        print("Starting training")
         for i in range(conf.num_epochs):
             batch_in_epoch = 0
             print("Training epoch {}".format(i))
@@ -99,7 +125,6 @@ def mainFunc(argv):
                 if global_step % conf.checkpoint_frequency == 0 :
                     saver.save(sess, os.path.join(train_logfolderPath, "{}{}-{}-ep{}.ckpt".format(experiment, tag_string, timestamp, i)), global_step=global_step)
                 global_step += 1
-
 
 if __name__ == "__main__":
     mainFunc(sys.argv[1:])

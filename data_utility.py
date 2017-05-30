@@ -239,3 +239,4 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
         shuffle(all_batches)
     for i in range(num_batches):
         yield all_batches[i]
+
