@@ -1,9 +1,6 @@
 import sys, getopt, datetime
 import tensorflow as tf
-from math import ceil
-from random import choice
-from tqdm import tqdm
-from data_utility import get_data_by_type, triples_to_tuples
+from data_utility import get_data_by_type, triples_to_tuples, apply_w2i_to_corpus_tuples, get_vocabulary
 from baseline import BaselineModel
 
 TUPLES_OUTPUT_FILEPATH = "./perplexity_tuples.txt"
@@ -74,8 +71,6 @@ def mainFunc(argv):
                               bidirectional=False,
                               attention=False)
     assert model != None
-    # Materialize validation data
-    validation_enc_inputs, _, word_2_index, index_2_word = get_data_by_type('eval')
 
     with tf.Session(config=configProto) as sess:
         global_step = 1
@@ -85,19 +80,20 @@ def mainFunc(argv):
         saver.restore(sess, checkpoint_filepath)
 
         tuples = triples_to_tuples(input_filepath)
-        
-        with open(output_filepath, 'w') as out:
-            for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(
-                    bucket_by_sequence_length(validation_enc_inputs, _, conf.batch_size, sort_data=False, shuffle_batches=False),
-                    total=ceil(len(validation_enc_inputs) / conf.batch_size)):
+        w2i, _ = get_w2i_i2w_dicts()
+        vocabulary = get_vocabulary()
+        enc_inputs, _ = apply_w2i_to_corpus_tuples(tuples, vocabulary, w2i)
 
-                feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths)
+        for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in
+                bucket_by_sequence_length(validation_enc_inputs, _, conf.batch_size, sort_data=False, shuffle_batches=False):
 
-                predictions = sess.run(model.decoder_prediction_inference, feed_dict).T
+            feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths)
 
-                out.writelines(map(maptoword, predictions))
-                
-                global_step += 1
+            predictions = sess.run(model.decoder_prediction_inference, feed_dict).T
+
+            out.writelines(map(maptoword, predictions))
+            
+            global_step += 1
 
 if __name__ == "__main__":
     mainFunc(sys.argv[1:])
