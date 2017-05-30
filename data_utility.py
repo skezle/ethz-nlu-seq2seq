@@ -4,7 +4,6 @@ import operator
 from numpy import array, transpose
 from math import ceil
 from config import Config as conf
-from random import shuffle
 
 START_TOKEN = "<bos>"
 END_TOKEN = "<eos>"
@@ -15,9 +14,9 @@ END_TOKEN_INDEX = 1
 UNK_TOKEN_INDEX = 2
 PAD_TOKEN_INDEX = 3
 TRAINING_FILEPATH = 'data/Training_Shuffled_Dataset.txt'
-TRAINING_TUPLES_FILEPATH = 'data/Training_Shuffled_Dataset_tuples.txt'
+TRAINING_TUPLES_FILEPATH = 'Training_Shuffled_Dataset_tuples.txt'
 VALIDATION_FILEPATH = 'data/Validation_Shuffled_Dataset.txt'
-VALIDATION_TUPLES_FILEPATH = 'data/Validation_Shuffled_Dataset_tuples.txt'
+VALIDATION_TUPLES_FILEPATH = 'Validation_Shuffled_Dataset_tuples.txt'
 VOCABULARY_FILEPATH = 'pickled_vars/vocabulary.p'
 W2I_FILEPATH = 'pickled_vars/word_2_index.p'
 I2W_FILEPATH = 'pickled_vars/index_2_index.p'
@@ -36,6 +35,22 @@ def triples_to_tuples(input_filepath, output_filepath):
 
         f1.write("{}\t{}\n".format(triples[0], triples[1]))
         f1.write("{}\t{}\n".format(triples[1], triples[2]))
+
+        # q1 = triples[0].count("``")
+        # q2 = triples[0].count("''")
+        # print("`` appears {} times and '' appears {} times".format(q1, q2))
+        # assert q1 == q2
+        #
+        # q1 = triples[1].count("``")
+        # q2 = triples[1].count("''")
+        # print("`` appears {} times and '' appears {} times".format(q1, q2))
+        # assert q1 == q2
+        #
+        # q1 = triples[2].count("``")
+        # q2 = triples[2].count("''")
+        # print("`` appears {} times and '' appears {} times".format(q1, q2))
+        # assert q1 == q2
+
 
     f.close()
     f1.close()
@@ -82,13 +97,6 @@ def get_or_create_vocabulary():
         vocabulary[UNK_TOKEN] = 1
         vocabulary[PAD_TOKEN] = 1
 
-        if not os.path.exists(os.path.dirname(VOCABULARY_FILEPATH)):
-            try:
-                os.makedirs(os.path.dirname(VOCABULARY_FILEPATH ))
-            except OSError as exc: # Guard against race condition
-                if exc.errno != errno.EEXIST:
-                    raise
-
         pickle.dump(vocabulary, open(VOCABULARY_FILEPATH, 'wb'))
         train_file.close()
     return vocabulary
@@ -124,19 +132,6 @@ def get_or_create_dicts_from_train_data():
                     index_2_word[index] = word
                     index += 1
 
-        if not os.path.exists(os.path.dirname(W2I_FILEPATH)):
-            try:
-                os.makedirs(os.path.dirname(W2I_FILEPATH))
-            except OSError as exc: # Guard against race condition
-                if exc.errno != errno.EEXIST:
-                    raise
-        if not os.path.exists(os.path.dirname(I2W_FILEPATH)):
-            try:
-                os.makedirs(os.path.dirname(I2W_FILEPATH))
-            except OSError as exc: # Guard against race condition
-                if exc.errno != errno.EEXIST:
-                    raise
-
         pickle.dump(word_2_index, open(W2I_FILEPATH, 'wb'))
         pickle.dump(index_2_word, open(I2W_FILEPATH, 'wb'))
 
@@ -150,9 +145,6 @@ def get_data_by_type(t):
 
     if t=='train':
         filename = TRAINING_TUPLES_FILEPATH
-
-        if not os.path.isfile(filename):
-            triples_to_tuples(TRAINING_FILEPATH, filename)
     elif t=='eval':
 
         filename = VALIDATION_TUPLES_FILEPATH
@@ -202,7 +194,7 @@ def get_data_by_type(t):
 ###
 # Custom function for bucketing
 ###
-def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True, shuffle_batches=True):
+def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True):
 
     assert len(enc_inputs) == len(dec_inputs)
 
@@ -215,7 +207,6 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
     
     num_batches = ceil(len(enc_inputs) / batch_size)    
 
-    all_batches = []
     for batch_num in range(num_batches):
         encoder_sequence_lengths = [len(sentence) 
                                     for sentence
@@ -233,10 +224,5 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
                          for i, sentence
                          in enumerate(dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
         decoder_batch = array(decoder_batch).transpose()
-        all_batches.append((encoder_batch, encoder_sequence_lengths, decoder_batch, decoder_sequence_lengths))
-
-    if shuffle_batches:
-        shuffle(all_batches)
-    for i in range(num_batches):
-        yield all_batches[i]
+        yield encoder_batch, encoder_sequence_lengths, decoder_batch, decoder_sequence_lengths
 
