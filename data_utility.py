@@ -60,6 +60,12 @@ def count_unique_tokens(filename):
     f.close()
     return len(s)
 
+###
+# Gets the vocabulary dictionary and returns it
+# This fails if the dictionary do not exist yet.
+###
+def get_vocabulary():
+    return pickle.load(open(VOCABULARY_FILEPATH, 'rb'))
 
 ###
 # Gets or creates a vocabulary based on vocabulary size
@@ -67,7 +73,7 @@ def count_unique_tokens(filename):
 def get_or_create_vocabulary():
 
     try:
-        vocabulary = pickle.load(open(VOCABULARY_FILEPATH, 'rb'))
+        vocabulary = get_vocabulary()
     except:
         vocabulary = {}
         train_file = open(TRAINING_TUPLES_FILEPATH)
