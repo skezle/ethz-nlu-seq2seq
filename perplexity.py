@@ -1,7 +1,9 @@
 import sys, getopt, datetime
 import tensorflow as tf
-from data_utility import get_data_by_type, triples_to_tuples, apply_w2i_to_corpus_tuples, get_vocabulary
+from data_utility import get_data_by_type, triples_to_tuples, apply_w2i_to_corpus_tuples, get_vocabulary, \
+    get_w2i_i2w_dicts, bucket_by_sequence_length
 from baseline import BaselineModel
+from config import Config as conf
 
 TUPLES_OUTPUT_FILEPATH = "./perplexity_tuples.txt"
 
@@ -44,7 +46,7 @@ def mainFunc(argv):
                 sys.exit(2) 
         elif opt in ("-i", "--input"):
             if arg != "":
-                output_filepath = arg
+                input_filepath = arg
             else:
                 printUsage()
                 sys.exit(2)
@@ -82,16 +84,14 @@ def mainFunc(argv):
         tuples = triples_to_tuples(input_filepath)
         w2i, _ = get_w2i_i2w_dicts()
         vocabulary = get_vocabulary()
-        enc_inputs, _ = apply_w2i_to_corpus_tuples(tuples, vocabulary, w2i)
+        enc_inputs, dec_inputs = apply_w2i_to_corpus_tuples(tuples, vocabulary, w2i)
 
-        for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in
-                bucket_by_sequence_length(validation_enc_inputs, _, conf.batch_size, sort_data=False, shuffle_batches=False):
+        for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size, sort_data=False, shuffle_batches=False):
 
-            feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths)
+            feed_dict = model.make_train_inputs(data_batch, data_sentence_lengths, label_batch, label_sentence_lengths)
 
-            predictions = sess.run(model.decoder_prediction_inference, feed_dict).T
-
-            out.writelines(map(maptoword, predictions))
+            softmax_predictions = sess.run(model.decoder_softmax_train, feed_dict).T
+            print(len(softmax_predictions))
             
             global_step += 1
 

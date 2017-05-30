@@ -248,6 +248,8 @@ class BaselineModel():
             )
 
             self.decoder_logits_train = output_fn(self.decoder_outputs_train)
+            self.decoder_softmax_train = tf.nn.softmax(self.decoder_logits_train, dim=-1)
+
             self.decoder_prediction_train = tf.argmax(self.decoder_logits_train, axis=-1, name='decoder_prediction_train')
 
             scope.reuse_variables()
