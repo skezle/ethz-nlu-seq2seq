@@ -67,7 +67,7 @@ def mainFunc(argv):
     with tf.Session(config=configProto) as sess:
         global_step = 1
 
-        saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=2)
+        saver = tf.train.Saver(max_to_keep=3, keep_checkpoint_every_n_hours=4)
 
         # Init Tensorboard summaries. This will save Tensorboard information into a different folder at each run.
         timestamp = '{0:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now())
