@@ -81,7 +81,7 @@ def mainFunc(argv):
     with tf.Session(config=configProto) as sess:
         global_step = 1
 
-        saver = tf.train.Saver(max_to_keep=3, keep_checkpoint_every_n_hours=4)
+        saver = tf.train.Saver()
         sess.run(tf.global_variables_initializer())
         saver.restore(sess, checkpoint_filepath)
 
