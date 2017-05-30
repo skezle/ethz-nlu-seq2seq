@@ -10,6 +10,8 @@ checkpoints/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+*.syn1neg.npy
+*.wv.syn0.npy
 *$py.class
 
 # C extensions
