@@ -153,6 +153,34 @@ def get_or_create_dicts_from_train_data():
     return word_2_index, index_2_word
 
 
+##
+# Applies the word-2-index conversion to a corpus of tuples.
+# 
+# sentenceStringList:   List of interaction strings. Each interaction consists of two
+#                       sentences delimited by '\t'.
+# vocabulary:           The vocabulary used to create the w2i dictionary
+# w2i_dict:             A dictionary having words as keys and the corresponding
+#                       index as a value.
+##
+def apply_w2i_to_corpus_tuples(interactionStringList, vocabulary, w2i_dict):
+
+        def apply_w2i_to_word(word):
+            if word in vocabulary:
+                return w2i_dict[word]
+            else:
+                return w2i_dict[UNK_TOKEN]
+
+        def apply_w2i_to_sentence(sentence_string):
+            return list(map(apply_w2i_to_word, sentence_string.split()))
+
+
+        tuples =map(lambda line: line.strip().split('\t'), interactionStringList)
+        input_sentences, answer_sentences = zip(*tuples)
+        encoder_inputs = list(map(apply_w2i_to_sentence, input_sentences))
+        decoder_inputs = list(map(apply_w2i_to_sentence, answer_sentences))
+
+        return encoder_inputs, decoder_inputs
+
 ###
 # Returns data by type (train, eval), together with the word_2_index and index_2_word dicts
 ###
@@ -169,7 +197,7 @@ def get_data_by_type(t):
 
         if not os.path.isfile(filename):
             triples_to_tuples(VALIDATION_FILEPATH, filename)
-
+ 
     else:
         print('Type must be "train" or "eval".')
         return
@@ -181,30 +209,10 @@ def get_data_by_type(t):
         encoder_inputs = pickle.load(open(ENCODER_INPUT_FILEPATH, 'rb'))
         decoder_inputs = pickle.load(open(DECODER_INPUT_FILEPATH, 'rb'))
     except:
-        encoder_inputs = []
-        decoder_inputs = [] 
 
-        f = open(filename, 'r')
-        for line in f:
-            conversation = line.strip().split('\t')
-
-            encoder_input = []
-            for word in conversation[0].split():
-                if word in vocabulary:
-                    encoder_input.append(word_2_index[word])
-                else:
-                    encoder_input.append(word_2_index[UNK_TOKEN])
-            #encoder_input.append(word_2_index[END_TOKEN])  # DO WE NEED EOS?
-            encoder_inputs.append(encoder_input)
-
-            decoder_input = []
-            for word in conversation[1].split():
-                if word in vocabulary:
-                    decoder_input.append(word_2_index[word])
-                else:
-                    decoder_input.append(word_2_index[UNK_TOKEN])
-            #decoder_input.append(word_2_index[END_TOKEN])
-            decoder_inputs.append(decoder_input)
+        with open(filename, 'r') as tuples_input:
+            lines = tuples_input.readlines()
+            encoder_inputs, decoder_inputs = apply_w2i_to_corpus_tuples(lines, vocabulary, word_2_index)
 
     return encoder_inputs, decoder_inputs, word_2_index, index_2_word
 
