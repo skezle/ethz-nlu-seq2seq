@@ -24,22 +24,27 @@ I2W_FILEPATH = 'pickled_vars/index_2_index.p'
 ENCODER_INPUT_FILEPATH = 'pickled_vars/encoder_inputs.p'
 DECODER_INPUT_FILEPATH = 'pickled_vars/decoder_inputs.p'
 ###
-# Creates an output file by transforming the original triples file to a tuple file
+# Creates an output file by transforming the original triples file to a tuples file
+# preserving the order of the dialogs. e.g. for a dialog consisting of sent1 -- sent2 -- sent3
+# the generated tuple "sent2 -- sent3" will directly follow "sent1 -- sent2"
+#
+# If output_filepath is None, then the output tuples will not be written to disk,
+# but returned
 ###
-def triples_to_tuples(input_filepath, output_filepath):
+def triples_to_tuples(input_filepath, output_filepath=None):
 
-    f = open(input_filepath, 'r')
-    f1 = open(output_filepath, 'w')
-
-    for line in f:
-        triples = line.strip().split('\t')
-
-        f1.write("{}\t{}\n".format(triples[0], triples[1]))
-        f1.write("{}\t{}\n".format(triples[1], triples[2]))
-
-    f.close()
-    f1.close()
-
+    tuples = []
+    with open(input_filepath, 'r') as inp:
+        for line in inp:
+            triples = line.strip().split('\t')
+            tuples.append("{}\t{}\n".format(triples[0], triples[1]))
+            tuples.append("{}\t{}\n".format(triples[1], triples[2]))
+    
+    if output_filepath is None:
+        return tuples
+    else:
+        with open(output_filepath, 'w') as out:
+            out.writelines(tuples)
 
 ###
 # Counts unique_tokens. No shit Sherlock...
@@ -93,15 +98,20 @@ def get_or_create_vocabulary():
         train_file.close()
     return vocabulary
 
+###
+# Gets word_2_index and index_2_word dictionaries and returns them
+# This fails if the dictionaries do not exist yet.
+###
+def get_w2i_i2w_dicts():
+        return pickle.load(open(W2I_FILEPATH, 'rb')), pickle.load(open(I2W_FILEPATH, 'rb'))
 
 ###
-# Creates word_2_index and index_2_word dictionaries
+# Creates word_2_index and index_2_word dictionaries and returns them
 ###
 def get_or_create_dicts_from_train_data():
 
     try:
-        word_2_index = pickle.load(open(W2I_FILEPATH, 'rb'))
-        index_2_word = pickle.load(open(I2W_FILEPATH, 'rb'))
+        return get_w2i_i2w_dicts()
     except:
         filename = TRAINING_TUPLES_FILEPATH
 

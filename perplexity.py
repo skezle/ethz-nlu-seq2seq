@@ -3,8 +3,10 @@ import tensorflow as tf
 from math import ceil
 from random import choice
 from tqdm import tqdm
-from data_utility import *
+from data_utility import get_data_by_type, triples_to_tuples
 from baseline import BaselineModel
+
+TUPLES_OUTPUT_FILEPATH = "./perplexity_tuples.txt"
 
 ###
 # Graph execution
@@ -82,6 +84,8 @@ def mainFunc(argv):
         sess.run(tf.global_variables_initializer())
         saver.restore(sess, checkpoint_filepath)
 
+        tuples = triples_to_tuples(input_filepath)
+        
         with open(output_filepath, 'w') as out:
             for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(
                     bucket_by_sequence_length(validation_enc_inputs, _, conf.batch_size, sort_data=False, shuffle_batches=False),
