@@ -86,6 +86,7 @@ def mainFunc(argv):
         train_writer        = tf.summary.FileWriter(train_logfolderPath, graph=tf.get_default_graph())
         validation_writer   = tf.summary.FileWriter("{}{}{}-validation-{}".format(conf.log_directory, experiment, tag_string, timestamp), graph=tf.get_default_graph())
 
+        copy_config(train_logfolderPath) # Copies the current config.py to the log directory
         sess.run(tf.global_variables_initializer())
 
         if conf.use_word2vec:

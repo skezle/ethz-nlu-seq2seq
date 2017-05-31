@@ -5,6 +5,7 @@ from numpy import array, transpose
 from math import ceil
 from config import Config as conf
 from random import shuffle
+from shutil import copyfile
 
 START_TOKEN = "<bos>"
 END_TOKEN = "<eos>"
@@ -264,3 +265,6 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
     for i in range(num_batches):
         yield all_batches[i]
 
+
+def copy_config(to):
+    copyfile("./config.py", os.path.join(to, "config.py"))
