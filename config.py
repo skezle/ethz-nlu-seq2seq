@@ -14,7 +14,8 @@ class Config:
     checkpoint_frequency = 500
     trace_frequency = 200
     trace_filename = "trace.json"
-    max_decoder_inference_length = 200
+    input_sentence_max_length = 60
+    max_decoder_inference_length = 60
 
     use_word2vec = False
     word_embedding_size = 100

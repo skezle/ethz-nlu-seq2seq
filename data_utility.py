@@ -223,19 +223,22 @@ def get_data_by_type(t):
 
     return encoder_inputs, decoder_inputs, word_2_index, index_2_word
 
-
 ###
 # Custom function for bucketing
 ###
-def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True, shuffle_batches=True):
+def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True, shuffle_batches=True, filter_long_sent=True):
 
     assert len(enc_inputs) == len(dec_inputs)
-
+    enc_dec = list(zip(enc_inputs, dec_inputs))     
+    if filter_long_sent:
+        enc_dec = list(filter(lambda tup: len(tup[0]) < conf.input_sentence_max_length or len(tup[1]) < conf.input_sentence_max_length, enc_dec))
+    
     if sort_data:
         enc_dec = zip(enc_inputs, dec_inputs)
         sorted_enc_dec_pairs = sorted(enc_dec, key=lambda inputs: (len(inputs[0]), len(inputs[1])))
 
-        enc_inputs, dec_inputs = zip(*sorted_enc_dec_pairs)
+    enc_inputs, dec_inputs = zip(*sorted_enc_dec_pairs)
+    assert len(enc_inputs) == len(dec_inputs)
     # else we keep the data unsorted
     
     num_batches = ceil(len(enc_inputs) / batch_size)    
