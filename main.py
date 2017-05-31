@@ -21,7 +21,7 @@ def mainFunc(argv):
     def printUsage():
         print('main.py -n <num_cores> -x <experiment>')
         print('num_cores = Number of cores requested from the cluster. Set to -1 to leave unset')
-        print('experiment = experiment setup that should be executed. e.g \'baseline\'')
+        print('experiment = experiment setup that should be executed. e.g \'baseline\' or \'attention\'')
         print('tag = optional tag or name to distinguish the runs, e.g. \'bidirect3layers\' ')
 
     num_cores = -1
@@ -40,7 +40,7 @@ def mainFunc(argv):
         elif opt in ("-n", "--num_cores"):
             num_cores = int(arg)
         elif opt in ("-x", "--experiment"):
-            if arg in ("baseline"):
+            if arg in ("baseline", "attention"):
                 experiment = arg
             else:
                 printUsage()
@@ -65,12 +65,19 @@ def mainFunc(argv):
                               embedding_size=conf.word_embedding_size,
                               bidirectional=False,
                               attention=False)
+    elif experiment == "attention":
+        model = BaselineModel(encoder_cell=conf.encoder_cell,
+                              decoder_cell=conf.decoder_cell,
+                              vocab_size=conf.vocabulary_size,
+                              embedding_size=conf.word_embedding_size,
+                              bidirectional=True,
+                              attention=True)
     assert model != None
     enc_inputs, dec_inputs, word_2_index, index_2_word = get_data_by_type('train')
     # Materialize validation data
     validation_enc_inputs, validation_dec_inputs, _, _ = get_data_by_type('eval')
     validation_data = list(bucket_by_sequence_length(validation_enc_inputs, validation_dec_inputs, conf.batch_size))
-    
+
     print("Starting TensorFlow session")
     with tf.Session(config=configProto) as sess:
         global_step = 1
