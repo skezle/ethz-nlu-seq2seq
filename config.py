@@ -11,7 +11,9 @@ class Config:
     log_directory = 'logs/'
     num_epochs = 1
     validation_summary_frequency = 10
-    checkpoint_frequency = 5
+    checkpoint_frequency = 500
+    trace_frequency = 200
+    trace_filename = "trace.json"
     max_decoder_inference_length = 200
 
     use_word2vec = False

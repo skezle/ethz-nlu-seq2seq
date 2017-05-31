@@ -112,7 +112,14 @@ def mainFunc(argv):
             for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size), total = ceil(len(enc_inputs) / conf.batch_size)):
                 batch_in_epoch += 1
                 feed_dict = model.make_train_inputs(data_batch, data_sentence_lengths, label_batch, label_sentence_lengths)
-                _, train_summary = sess.run([model.train_op, model.summary_op], feed_dict)
+                run_options = None
+                run_metadata = None
+                if global_step % conf.trace_frequency == 0:
+                    run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                    run_metadata = tf.RunMetadata()
+                _, train_summary = sess.run([model.train_op, model.summary_op], feed_dict, options=run_options, run_metadata=run_metadata)
+                if global_step % conf.trace_frequency == 0:
+                    train_writer.add_run_metadata(run_metadata, "step{}".format(global_step))
                 train_writer.add_summary(train_summary, global_step)
 
                 if global_step % conf.validation_summary_frequency == 0:#
