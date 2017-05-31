@@ -1,12 +1,10 @@
 import sys, getopt, datetime
 import tensorflow as tf
 from data_utility import get_data_by_type, triples_to_tuples, apply_w2i_to_corpus_tuples, get_vocabulary, \
-    get_w2i_i2w_dicts, bucket_by_sequence_length
+    get_w2i_i2w_dicts, bucket_by_sequence_length, END_TOKEN_INDEX
 from baseline import BaselineModel
 from config import Config as conf
 import numpy as np
-
-TUPLES_OUTPUT_FILEPATH = "./perplexity_tuples.txt"
 
 ###
 # Graph execution
@@ -87,40 +85,41 @@ def mainFunc(argv):
         vocabulary = get_vocabulary()
         enc_inputs, dec_inputs = apply_w2i_to_corpus_tuples(tuples, vocabulary, w2i)
 
-        perplexities = []
-
+        is_first_tuple = True
         for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size, sort_data=False, shuffle_batches=False):
-
-            print("Data_batch shape is: {}".format(data_batch.shape))
-            print("Data sequence length is: {}".format(len(data_sentence_lengths)))
-            print("Label_batch shape is: {}".format(label_batch.shape))
-            print("Label sentence length is: {}".format(len(label_sentence_lengths)))
-
             feed_dict = model.make_train_inputs(data_batch, data_sentence_lengths, label_batch, label_sentence_lengths)
 
-            softmax_predictions, logits_prediction = sess.run([model.decoder_softmax_train, model.decoder_logits_train], feed_dict)
-            print(logits_prediction.shape)
-            print(softmax_predictions.shape)
+            softmax_predictions = sess.run(model.decoder_softmax_train, feed_dict)
+            # softmax_predictions.shape = (max_sentence_len, batch_size, vocabulary_size)
 
-            for sentID in range(len(label_sentence_lengths)):
-                total_prob = 0
+            # Perplexity calculation
+            for sentID in range(len(label_sentence_lengths)): # Loop 
+                word_probs = []
+                # As long as we havent reached the maximum sentence length or seen the <eos>
                 for wordID in range(label_sentence_lengths[sentID]):
-                    dict_dist = softmax_predictions[wordID,sentID]
                     ground_truth_word_index = label_batch[wordID, sentID]
-                    prob = dict_dist[ground_truth_word_index]
-                    total_prob = total_prob + np.log(prob)
-                perplexity = 2**(-0.5*total_prob)
-                perplexities.append(perplexity)
+                    prob = softmax_predictions[wordID,sentID,ground_truth_word_index]
+                    word_probs.append(prob)
+
+                # Our bucketing function doesn't add <eos>, so we
+                # manually add the probability of <eos> here.
+                word_probs.append(
+                    softmax_predictions[
+                            label_sentence_lengths[sentID], 
+                            sentID, 
+                            END_TOKEN_INDEX])
+                log_probs = np.log(word_probs)
+
+                perplexity = 2**(-1.0*log_probs.mean())
+                
+                if is_first_tuple:
+                    print(perplexity, end=' ')
+                    is_first_tuple = False
+                else:
+                    print(perplexity)
+                    is_first_tuple = True
             
             global_step += 1
-
-        f_perplexities = open(TUPLES_OUTPUT_FILEPATH, 'w')
-        for i in range(len(perplexities)):
-            if i%2 == 0:
-                f_perplexities.write("{} ".format(perplexities[i]))
-            else:
-                f_perplexities.write("{}\n".format(perplexities[i]))
-        f_perplexities.close()
 
 if __name__ == "__main__":
     mainFunc(sys.argv[1:])
