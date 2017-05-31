@@ -117,9 +117,9 @@ def mainFunc(argv):
                 _, train_summary = sess.run([model.train_op, model.summary_op], feed_dict)
                 train_writer.add_summary(train_summary, global_step)
 
-                decoder_outputs_train, decoder_logits_train = sess.run([model.decoder_outputs_train, model.decoder_logits_train], feed_dict)
-                print("shape of decoder outputs: {}".format(decoder_outputs_train.shape))
-                print("shape of decoder logits: {}".format(decoder_logits_train.shape))
+                # decoder_outputs_train, decoder_logits_train = sess.run([model.decoder_outputs_train, model.decoder_logits_train], feed_dict)
+                # print("shape of decoder outputs: {}".format(decoder_outputs_train.shape))
+                # print("shape of decoder logits: {}".format(decoder_logits_train.shape))
 
                 if global_step % conf.validation_summary_frequency == 0:
                     # Randomly choose a batch from the validation dataset and use it for loss calculation

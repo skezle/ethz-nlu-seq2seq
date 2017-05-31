@@ -6,7 +6,7 @@ class Config:
     encoder_cell = tf.contrib.rnn.LSTMCell(encoder_cell_size)
     decoder_cell_size = 200
     decoder_cell = tf.contrib.rnn.LSTMCell(decoder_cell_size)
-    batch_size = 30
+    batch_size = 60
     log_directory = 'logs/'
     num_epochs = 1
     validation_summary_frequency = 10
