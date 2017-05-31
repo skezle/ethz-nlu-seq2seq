@@ -119,10 +119,9 @@ class BaselineModel():
 
             self.decoder_train_targets = decoder_train_targets
 
-            self.loss_weights = tf.ones([
-                batch_size,
-                tf.reduce_max(self.decoder_train_length)
-            ], dtype=tf.float32, name="loss_weights")
+            self.loss_weights = tf.sequence_mask(self.decoder_train_length, 
+                                                 tf.reduce_max(self.decoder_train_length),
+                                                 dtype=tf.float32)
 
     def _init_embeddings(self):
         with tf.variable_scope("embedding") as scope:
