@@ -189,7 +189,7 @@ class BaselineModel():
                 return tf.contrib.layers.fully_connected(inputs=outputs,
                                                          num_outputs=self.vocab_size,
                                                          activation_fn=None, ## linear
-                                                         scope=scope) 
+                                                         scope=scope)
 
             if not self.attention:
                 decoder_fn_train = seq2seq.simple_decoder_fn_train(encoder_state=self.encoder_state)

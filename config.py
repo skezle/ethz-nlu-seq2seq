@@ -2,14 +2,14 @@ import tensorflow as tf
 
 class Config:
     vocabulary_size = 20000
-    encoder_cell_size = 256
+    encoder_cell_size = 200
     encoder_cell = tf.contrib.rnn.LSTMCell(encoder_cell_size)
-    decoder_cell_size = 256
+    decoder_cell_size = 200
     decoder_cell = tf.contrib.rnn.LSTMCell(decoder_cell_size)
-    batch_size = 64
+    batch_size = 30
     log_directory = 'logs/'
     num_epochs = 1
-    validation_summary_frequency = 100
+    validation_summary_frequency = 10
     checkpoint_frequency = 1000
     max_decoder_inference_length = 30
     pickled_vars_directory = "pickled_vars"
