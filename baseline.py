@@ -99,7 +99,7 @@ class BaselineModel():
 
             decoder_train_targets = tf.concat([self.decoder_targets, PAD_SLICE], axis=0)
             decoder_train_targets_seq_len, _ = tf.unstack(tf.shape(decoder_train_targets))
-            
+
             eos_multiplication_mask = tf.one_hot(self.decoder_train_length - 1,
                                                         decoder_train_targets_seq_len,
                                                         on_value=0, off_value=1,
@@ -116,7 +116,7 @@ class BaselineModel():
                                             tf.multiply(decoder_train_targets,
                                             eos_multiplication_mask),
                                             eos_addition_mask)
-            
+
             self.decoder_train_targets = decoder_train_targets
 
             self.loss_weights = tf.ones([
@@ -184,7 +184,11 @@ class BaselineModel():
     def _init_decoder(self):
         with tf.variable_scope("Decoder") as scope:
             def output_fn(outputs):
-                return tf.contrib.layers.linear(outputs, self.vocab_size, scope=scope)
+                ##return tf.contrib.layers.linear(outputs, self.vocab_size, scope=scope)
+                return tf.contrib.layers.fully_connected(inputs=outputs,
+                                                         num_outputs=self.vocab_size,
+                                                         activation_fn=None, ## linear
+                                                         scope=scope)
 
             if not self.attention:
                 decoder_fn_train = seq2seq.simple_decoder_fn_train(encoder_state=self.encoder_state)
