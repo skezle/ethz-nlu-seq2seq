@@ -105,7 +105,7 @@ def mainFunc(argv):
                            conf.word2vec_path,
                            conf.word_embedding_size,
                            conf.vocabulary_size)
-
+        sess.graph.finalize()
         print("Starting training")
         for i in range(conf.num_epochs):
             batch_in_epoch = 0
