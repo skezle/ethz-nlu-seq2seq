@@ -1,7 +1,7 @@
 import pickle
 import os.path
 import operator
-from numpy import array, transpose
+import numpy as np
 from math import ceil
 from config import Config as conf
 from random import shuffle
@@ -252,7 +252,7 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
         encoder_batch = [sentence + ([PAD_TOKEN_INDEX] * (max_len_enc - encoder_sequence_lengths[i]))
                          for i, sentence
                          in enumerate(enc_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
-        encoder_batch = array(encoder_batch).transpose()
+        encoder_batch = np.array(encoder_batch).transpose()
         decoder_sequence_lengths = [len(sentence) 
                                     for sentence
                                     in dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size]]
@@ -260,7 +260,7 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
         decoder_batch = [sentence + ([PAD_TOKEN_INDEX] * (max_len_dec - decoder_sequence_lengths[i]))
                          for i, sentence
                          in enumerate(dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
-        decoder_batch = array(decoder_batch).transpose()
+        decoder_batch = np.array(decoder_batch).transpose()
         all_batches.append((encoder_batch, encoder_sequence_lengths, decoder_batch, decoder_sequence_lengths))
 
     if shuffle_batches:
@@ -271,3 +271,12 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
 
 def copy_config(to):
     copyfile("./config.py", os.path.join(to, "config.py"))
+
+def truncate_sentence(sent):
+    idxArr = np.where(sent == END_TOKEN_INDEX)[0]
+    if idxArr.size == 0:
+        return sent
+    else:
+        return sent[:idxArr[0]+1]
+def truncate_after_eos(sentence_list):
+    return list(map(lambda sent: truncate_sentence(sent), sentence_list))
