@@ -235,9 +235,9 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
     
     if sort_data:
         enc_dec = zip(enc_inputs, dec_inputs)
-        sorted_enc_dec_pairs = sorted(enc_dec, key=lambda inputs: (len(inputs[0]), len(inputs[1])))
+        enc_dec = sorted(enc_dec, key=lambda inputs: (len(inputs[0]), len(inputs[1])))
 
-    enc_inputs, dec_inputs = zip(*sorted_enc_dec_pairs)
+    enc_inputs, dec_inputs = zip(*enc_dec)
     assert len(enc_inputs) == len(dec_inputs)
     # else we keep the data unsorted
     
