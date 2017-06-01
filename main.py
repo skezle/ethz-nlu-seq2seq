@@ -108,10 +108,8 @@ def mainFunc(argv):
         sess.graph.finalize()
         print("Starting training")
         for i in range(conf.num_epochs):
-            batch_in_epoch = 0
             print("Training epoch {}".format(i))
             for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size), total = ceil(len(enc_inputs) / conf.batch_size)):
-                batch_in_epoch += 1
                 feed_dict = model.make_train_inputs(data_batch, data_sentence_lengths, label_batch, label_sentence_lengths)
                 run_options = None
                 run_metadata = None
@@ -133,6 +131,9 @@ def mainFunc(argv):
                 if global_step % conf.checkpoint_frequency == 0 :
                     saver.save(sess, os.path.join(train_logfolderPath, "{}{}-{}-ep{}.ckpt".format(experiment, tag_string, timestamp, i)), global_step=global_step)
                 global_step += 1
+
+        saver.save(sess, os.path.join(train_logfolderPath, "{}{}-{}-ep{}-final.ckpt".format(experiment, tag_string, timestamp, conf.num_epochs)))
+        print("Done with training for {} epochs".format(conf.num_epochs))
 
 if __name__ == "__main__":
     mainFunc(sys.argv[1:])
