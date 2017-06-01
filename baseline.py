@@ -187,6 +187,7 @@ class BaselineModel():
                 return tf.contrib.layers.fully_connected(inputs=outputs,
                                                          num_outputs=self.vocab_size,
                                                          activation_fn=None, ## linear
+                                                         reuse=True,
                                                          scope=scope)
 
             if not self.attention:
