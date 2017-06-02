@@ -8,7 +8,7 @@ import re
 #                   'L535163', 'L535148', 'L535133', 'L541062', 'L540986', 'L540485', 'L540483',
 #                   'L540476', 'L540816', 'L619064', 'L50129', 'L78957']
 
-def load_conversations(filename, bullshit_lines, script):
+def load_conversations(filename, bullshit_lines, script, characters_capslock, characters_firstupper):
     print("Loading dialogue turns from {} and applyting regular expressions..".format(filename))
 
     matching_quotationmarks = re.compile('\"(.*)\"')
@@ -47,6 +47,7 @@ def load_conversations(filename, bullshit_lines, script):
     zeroh = re.compile("0h")
     dash_tagnumber = re.compile("-<number>")
     tagnumber_dash = re.compile("<number>-")
+    tagperson = re.compile("< person >")
     f_number = re.compile("f\d+")
     e_number = re.compile("e\d+")
     d_number = re.compile("d\d+")
@@ -68,10 +69,37 @@ def load_conversations(filename, bullshit_lines, script):
                     (lineIDs[i] not in bullshit_lines) and
                     (lineIDs[i + 1] not in bullshit_lines)):
 
-                d1 = re.sub(r"([\w/'+$\s-]+|[^\w/'+$\s-]+)\s*", r"\1 ", script[lineIDs[i]].lower())
-                d2 = re.sub(r"([\w/'+$\s-]+|[^\w/'+$\s-]+)\s*", r"\1 ", script[lineIDs[i+1]].lower())
+                d1 = script[lineIDs[i]]
+                d2 = script[lineIDs[i + 1]]
+
+                tokens_d1 = d1.strip().split(" ");  tokens_d2 = d2.strip().split(" ")
+                new_tokens_d1 = [];                 new_tokens_d2 = []
+
+                for i in range(len(tokens_d1)):
+                    if ((tokens_d1[i] in characters_capslock) or (tokens_d1[i] in characters_firstupper)):
+                        new_tokens_d1.append("<person>")
+                    else:
+                        new_tokens_d1.append(tokens_d1[i])
+
+                for i in range(len(tokens_d2)):
+                    if ((tokens_d2[i] in characters_capslock) or (tokens_d2[i] in characters_firstupper)):
+                        new_tokens_d2.append("<person>")
+                    else:
+                        new_tokens_d2.append(tokens_d2[i])
+
+                d1_string = new_tokens_d1[0];       d2_string = new_tokens_d2[0]
+                for i in range(1, len(new_tokens_d1)):
+                    d1_string = d1_string + " " + new_tokens_d1[i]
+                for i in range(1, len(new_tokens_d2)):
+                    d2_string = d2_string + " " + new_tokens_d2[i]
+
+                d1 = d1_string.lower();     d2 = d2_string.lower()
+
+                d1 = re.sub(r"([\w/'+$\s-]+|[^\w/'+$\s-]+)\s*", r"\1 ", d1)
+                d2 = re.sub(r"([\w/'+$\s-]+|[^\w/'+$\s-]+)\s*", r"\1 ", d2)
                 d1 = d1.replace("'", " ' ")
                 d2 = d2.replace("'", " ' ")
+                d1 = tagperson.sub("<person>", d1);     d2 = tagperson.sub("<person>", d2)
                 # codes and passwords
                 d1 = f_number.sub("f <number>", d1);    d2 = f_number.sub("f <number>", d2)
                 d1 = e_number.sub("e <number>", d1);    d2 = e_number.sub("e <number>", d2)
@@ -138,6 +166,9 @@ def load_lines(filename):
     f = open(filename, 'r', encoding="ISO-8859-1")
     script = {}
     bullshit_lines = []
+    characters_capslock = set()
+    characters_firstupper = set()
+    discarded_characters = set()
 
     for line in f:
         script_line = line.strip().split(' +++$+++ ')
@@ -145,10 +176,21 @@ def load_lines(filename):
             bullshit_lines.append(script_line[0])
         else:
             script[script_line[0]] = script_line[4]
+            if len(script_line[3].lower().strip()) > 1:
+                s_cl = script_line[3].strip()
+                s_fu = "".join(c if i == 0 else c.lower() for i, c in enumerate(script_line[3].strip()))
+                #print("{}\t\t{}".format(s_cl, s_fu))
+                characters_capslock.add(s_cl)
+                characters_firstupper.add(s_fu)
+            else:
+                discarded_characters.add(script_line[3].lower().strip())
 
     print("Number of empty lines: {}".format(len(bullshit_lines)))
+    print("Number of unique characters: {}".format(len(characters_capslock)))
+    print("Number of one-letter names: {}".format(len(discarded_characters)))
     f.close()
-    return script, bullshit_lines
+    return script, bullshit_lines, characters_capslock, characters_firstupper, discarded_characters
+
 
 def dump_Tuples(filename, conversations, convID):
     print("Dumping cleaned tuples on path {}".format(filename))
@@ -158,6 +200,7 @@ def dump_Tuples(filename, conversations, convID):
         f.write("{}\t{}\n".format(conversations[i][0], conversations[i][1]))
 
     f.close()
+
 
 def triples_to_tuples_check(input_filepath):
 
@@ -220,8 +263,8 @@ def tuples_check(filename):
 
 
 def create_Cornell_tuples(lines_path, conversations_path, tumples_path):
-    script, bullshit_lines = load_lines(lines_path)
-    conversations, convID = load_conversations(conversations_path, bullshit_lines, script)
+    script, bullshit_lines, characters_capslock, character_firstupper, _ = load_lines(lines_path)
+    conversations, convID = load_conversations(conversations_path, bullshit_lines, script, characters_capslock, character_firstupper)
     dump_Tuples(tumples_path, conversations, convID)
 
 
