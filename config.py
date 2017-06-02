@@ -2,6 +2,8 @@ import tensorflow as tf
 
 class Config:
     vocabulary_size = 10000
+    bidirectional_encoder = True
+    attention = True
     encoder_cell_size = 200
     ##encoder_cell = tf.contrib.rnn.LSTMCell(encoder_cell_size)
     encoder_cell = tf.contrib.rnn.GRUCell(encoder_cell_size) ## less params

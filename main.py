@@ -63,7 +63,7 @@ def mainFunc(argv):
                               decoder_cell=conf.decoder_cell,
                               vocab_size=conf.vocabulary_size,
                               embedding_size=conf.word_embedding_size,
-                              bidirectional=False,
+                              bidirectional=conf.bidirectional_encoder,
                               attention=False)
 
     elif experiment == "attention":
@@ -71,7 +71,7 @@ def mainFunc(argv):
                               decoder_cell=conf.decoder_cell,
                               vocab_size=conf.vocabulary_size,
                               embedding_size=conf.word_embedding_size,
-                              bidirectional=True,
+                              bidirectional=conf.bidirectional_encoder,
                               attention=True)
     assert model != None
     enc_inputs, dec_inputs, word_2_index, index_2_word = get_data_by_type('train')
