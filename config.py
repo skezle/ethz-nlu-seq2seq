@@ -26,6 +26,7 @@ class Config:
     CORNELL_lines_path = CORNELL_base_path + '/movie_lines.txt'
     CORNELL_conversations_path = CORNELL_base_path + '/movie_conversations.txt'
     CORNELL_TUPLES_PATH = CORNELL_base_path + '/Training_Cornell_Shuffled_Dataset.txt'
+    both_datasets_tuples_filepath = 'Training_both_datasets.txt'
     use_CORNELL_for_training = True
     use_CORNELL_for_word2vec = True
 

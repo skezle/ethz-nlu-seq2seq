@@ -27,18 +27,40 @@ DECODER_INPUT_FILEPATH = 'pickled_vars/decoder_inputs.p'
 # Creates an output file by transforming the original triples file to a tuple file
 ###
 def triples_to_tuples(input_filepath, output_filepath):
-
     f = open(input_filepath, 'r')
     f1 = open(output_filepath, 'w')
 
     for line in f:
         triples = line.strip().split('\t')
-
         f1.write("{}\t{}\n".format(triples[0], triples[1]))
         f1.write("{}\t{}\n".format(triples[1], triples[2]))
 
     f.close()
     f1.close()
+    merge(output_filepath, conf.CORNELL_TUPLES_PATH, conf.both_datasets_tuples_filepath)
+
+
+def merge(base_dataset_tuples_filepath, cornell_tuples_filepath, output_filepath):
+    if conf.use_CORNELL_for_training:
+        f = open(base_dataset_tuples_filepath, 'r')
+        f1 = open(output_filepath, 'w')
+
+        for line in f:
+            couples = line.strip().split('\t')
+            f1.write("{}\t{}\n".format(couples[0], couples[1]))
+        f.close()
+        if not os.path.isfile(cornell_tuples_filepath):
+            cornell_loading.create_Cornell_tuples(conf.CORNELL_lines_path, conf.CORNELL_conversations_path, conf.CORNELL_TUPLES_PATH)
+        f2 = open(cornell_tuples_filepath, 'r')
+        for line in f2:
+            couples = line.strip().split('\t')
+            if len(couples) > 2:
+                k = 1
+                while len(couples[k]) <= 0 and k <= len(couples):
+                    k = k + 1
+                f1.write("{}\t{}\n".format(couples[0], couples[k]))
+        f2.close()
+        f1.close()
 
 
 ###
@@ -60,24 +82,22 @@ def count_unique_tokens(filename):
 # Gets or creates a vocabulary based on vocabulary size
 ###
 def get_or_create_vocabulary():
-
+    print("Getting vocabulary..")
     try:
         vocabulary = pickle.load(open(VOCABULARY_FILEPATH, 'rb'))
     except:
+        print("Building vocabulary..")
         vocabulary = {}
 
-        train_file = open(TRAINING_TUPLES_FILEPATH)
+        if conf.use_CORNELL_for_training:
+            train_file = open(conf.both_datasets_tuples_filepath)
+        else:
+            train_file = open(TRAINING_TUPLES_FILEPATH)
+
         for line in train_file:
             conversation = line.strip().split()
             for word in conversation:
                 vocabulary[word] = vocabulary.get(word, 0) + 1
-
-        if conf.use_CORNELL_for_training:
-            train_file = open(conf.CORNELL_TUPLES_PATH)
-            for line in train_file:
-                conversation = line.strip().split()
-                for word in conversation:
-                    vocabulary[word] = vocabulary.get(word, 0) + 1
 
         sorted_vocab = sorted(vocabulary.items(), key=operator.itemgetter(1), reverse=True)
 
@@ -98,17 +118,20 @@ def get_or_create_vocabulary():
 # Creates word_2_index and index_2_word dictionaries
 ###
 def get_or_create_dicts_from_train_data():
-
+    print("Getting word2index and index2word..")
     try:
         word_2_index = pickle.load(open(W2I_FILEPATH, 'rb'))
         index_2_word = pickle.load(open(I2W_FILEPATH, 'rb'))
     except:
+        print("Building word2index and index2word")
         filename = TRAINING_TUPLES_FILEPATH
-
         if not os.path.isfile(filename):
             triples_to_tuples(TRAINING_FILEPATH, filename)
 
-        f = open(filename, 'r')
+        if conf.use_CORNELL_for_training:
+            f = open(conf.both_datasets_tuples_filepath, 'r')
+        else:
+            f = open(filename, 'r')
 
         word_2_index = {START_TOKEN: START_TOKEN_INDEX, END_TOKEN: END_TOKEN_INDEX, UNK_TOKEN: UNK_TOKEN_INDEX, PAD_TOKEN: PAD_TOKEN_INDEX}
         index_2_word = {START_TOKEN_INDEX: START_TOKEN, END_TOKEN_INDEX: END_TOKEN, UNK_TOKEN_INDEX: UNK_TOKEN, PAD_TOKEN_INDEX: PAD_TOKEN}
@@ -137,6 +160,8 @@ def get_data_by_type(t):
 
     if t=='train':
         filename = TRAINING_TUPLES_FILEPATH
+        if conf.use_CORNELL_for_training:
+            filename = conf.both_datasets_tuples_filepath
     elif t=='eval':
         filename = VALIDATION_TUPLES_FILEPATH
         if not os.path.isfile(filename):
@@ -149,41 +174,40 @@ def get_data_by_type(t):
     vocabulary = get_or_create_vocabulary()
 
     try:
+        print("Getting encoder and decoder inputs..")
         encoder_inputs = pickle.load(open(ENCODER_INPUT_FILEPATH, 'rb'))
         decoder_inputs = pickle.load(open(DECODER_INPUT_FILEPATH, 'rb'))
     except:
+        print("Building encoder and decoder inputs..")
         encoder_inputs = []
         decoder_inputs = []
 
-        training_files = [filename]
-        if conf.use_CORNELL_for_training and t=='train':
-            if not os.path.isfile(conf.CORNELL_TUPLES_PATH):
-                cornell_loading.create_Cornell_tuples(conf.CORNELL_lines_path, conf.CORNELL_conversations_path,
-                                                      conf.CORNELL_TUPLES_PATH)
-            training_files.append(conf.CORNELL_TUPLES_PATH)
+        f = open(filename, 'r')
+        for line in f:
+            conversation = line.strip().split('\t')
 
-        for trainset in training_files:
-            f = open(trainset, 'r')
-            for line in f:
-                conversation = line.strip().split('\t')
+            encoder_input = []
+            for word in conversation[0].split():
+                if word in vocabulary:
+                    encoder_input.append(word_2_index[word])
+                else:
+                    encoder_input.append(word_2_index[UNK_TOKEN])
+            # encoder_input.append(word_2_index[END_TOKEN])  # DO WE NEED EOS?
+            encoder_inputs.append(encoder_input)
 
-                encoder_input = []
-                for word in conversation[0].split():
-                    if word in vocabulary:
-                        encoder_input.append(word_2_index[word])
-                    else:
-                        encoder_input.append(word_2_index[UNK_TOKEN])
-                # encoder_input.append(word_2_index[END_TOKEN])  # DO WE NEED EOS?
-                encoder_inputs.append(encoder_input)
+            decoder_input = []
+            print(line)
+            for word in conversation[1].split():
+                if word in vocabulary:
+                    #print(conversation[1])
+                    decoder_input.append(word_2_index[word])
+                else:
+                    decoder_input.append(word_2_index[UNK_TOKEN])
+            # decoder_input.append(word_2_index[END_TOKEN])
+            decoder_inputs.append(decoder_input)
 
-                decoder_input = []
-                for word in conversation[1].split():
-                    if word in vocabulary:
-                        decoder_input.append(word_2_index[word])
-                    else:
-                        decoder_input.append(word_2_index[UNK_TOKEN])
-                # decoder_input.append(word_2_index[END_TOKEN])
-                decoder_inputs.append(decoder_input)
+        pickle.dump(encoder_inputs, open(ENCODER_INPUT_FILEPATH, 'wb'))
+        pickle.dump(decoder_inputs, open(DECODER_INPUT_FILEPATH, 'wb'))
 
     return encoder_inputs, decoder_inputs, word_2_index, index_2_word
 

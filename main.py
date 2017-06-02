@@ -91,10 +91,14 @@ def mainFunc(argv):
         if conf.use_word2vec:
             print("Using word2vec embeddings")
             if not os.path.isfile(conf.word2vec_path):
+                if conf.use_CORNELL_for_word2vec:
+                    train_sentences = conf.both_datasets_tuples_filepath
+                else:
+                    train_sentences = TRAINING_TUPLES_FILEPATH
                 train_embeddings(save_to_path=conf.word2vec_path,
                                           embedding_size=conf.word_embedding_size,
                                           minimal_frequency=conf.word2vec_min_word_freq,
-                                          train_path=TRAINING_FILEPATH,
+                                          train_tuples_path=train_sentences,
                                           validation_path=VALIDATION_FILEPATH,
                                           num_workers=conf.word2vec_workers_count)
             print("Loading word2vec embeddings")
