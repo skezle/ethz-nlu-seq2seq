@@ -41,7 +41,7 @@ def mainFunc(argv):
                 experiment = arg
             else:
                 printUsage()
-                sys.exit(2) 
+                sys.exit(2)
         elif opt in ("-o", "--output"):
             if arg != "":
                 output_filepath = arg
@@ -71,8 +71,15 @@ def mainFunc(argv):
                               decoder_cell=conf.decoder_cell,
                               vocab_size=conf.vocabulary_size,
                               embedding_size=conf.word_embedding_size,
-                              bidirectional=False,
-                              attention=False)
+                              bidirectional=conf.bidirectional_encoder,
+                              attention=conf.attention)
+    elif experiment == "attention":
+        model = BaselineModel(encoder_cell=conf.encoder_cell,
+                              decoder_cell=conf.decoder_cell,
+                              vocab_size=conf.vocabulary_size,
+                              embedding_size=conf.word_embedding_size,
+                              bidirectional=conf.bidirectional_encoder,
+                              attention=conf.attention)
     assert model != None
     # Materialize validation data
     validation_enc_inputs, _, word_2_index, index_2_word = get_data_by_type('eval')
@@ -95,7 +102,7 @@ def mainFunc(argv):
                 predictions = sess.run(model.decoder_prediction_inference, feed_dict).T
 
                 out.writelines(map(maptoword, predictions))
-                
+
                 global_step += 1
 
 if __name__ == "__main__":
