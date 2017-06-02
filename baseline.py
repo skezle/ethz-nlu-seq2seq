@@ -20,9 +20,13 @@ class BaselineModel():
     PAD = PAD_TOKEN_INDEX
     def __init__(self, encoder_cell, decoder_cell, vocab_size, embedding_size,
                  bidirectional=True,
-                 attention=False):
+                 attention=False,
+                 dropout=False,
+                 num_layers=1):
         self.bidirectional = bidirectional
         self.attention = attention ## used when initialising the decoder
+        self.dropout = dropout
+        self.num_layers = num_layers
 
         self.vocab_size = vocab_size
         self.embedding_size = embedding_size
@@ -40,7 +44,11 @@ class BaselineModel():
     def _make_graph(self):
         tf.reset_default_graph()
 
+        
         self._init_placeholders()
+
+        self._init_dropout()
+        self._init_deep()
 
         self._init_decoder_train_connectors()
         self._init_embeddings()
@@ -55,6 +63,16 @@ class BaselineModel():
         self._init_optimizer()
 
         self._init_summary()
+
+    def _init_dropout(self):
+        if self.dropout:
+            self.encoder_cell = tf.contrib.rnn.DropoutWrapper(self.encoder_cell, input_keep_prob=self.dropout_keep_prob)
+            self.decoder_cell = tf.contrib.rnn.DropoutWrapper(self.decoder_cell, input_keep_prob=self.dropout_keep_prob)
+
+    def _init_deep(self):
+        if self.num_layers != 1:
+            self.encoder_cell = tf.contrib.rnn.MultiRNNCell([self.encoder_cell] * self.num_layers)
+            self.decoder_cell = tf.contrib.rnn.MultiRNNCell([self.decoder_cell] * self.num_layers)
 
     def _init_placeholders(self):
         """ Everything is time-major """
@@ -80,6 +98,8 @@ class BaselineModel():
             dtype=tf.int32,
             name='decoder_targets_length',
         )
+
+        self.dropout_keep_prob = tf.placeholder(tf.float32)
 
     def _init_decoder_train_connectors(self):
         """
@@ -290,10 +310,12 @@ class BaselineModel():
             self.encoder_inputs_length: input_seq_len,
             self.decoder_targets: target_seq,
             self.decoder_targets_length: target_seq_len,
+            self.dropout_keep_prob: conf.dropout_keep_prob,
         }
 
     def make_inference_inputs(self, input_seq, input_seq_len):
         return {
             self.encoder_inputs: input_seq,
             self.encoder_inputs_length: input_seq_len,
+            self.dropout_keep_prob: 1,
         }

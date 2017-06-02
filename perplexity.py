@@ -70,7 +70,9 @@ def mainFunc(argv):
                               vocab_size=conf.vocabulary_size,
                               embedding_size=conf.word_embedding_size,
                               bidirectional=False,
-                              attention=False)
+                              attention=False,
+                              dropout=conf.use_dropout,
+                              num_layers=conf.num_layers)
     assert model != None
 
     with tf.Session(config=configProto) as sess:
