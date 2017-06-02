@@ -37,7 +37,7 @@ def mainFunc(argv):
         elif opt in ("-n", "--num_cores"):
             num_cores = int(arg)
         elif opt in ("-x", "--experiment"):
-            if arg in ("baseline"):
+            if arg in ("baseline", "attention"):
                 experiment = arg
             else:
                 printUsage()
