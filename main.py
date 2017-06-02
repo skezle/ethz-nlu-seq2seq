@@ -65,6 +65,7 @@ def mainFunc(argv):
                               embedding_size=conf.word_embedding_size,
                               bidirectional=False,
                               attention=False)
+
     elif experiment == "attention":
         model = BaselineModel(encoder_cell=conf.encoder_cell,
                               decoder_cell=conf.decoder_cell,
@@ -99,11 +100,11 @@ def mainFunc(argv):
             print("Using word2vec embeddings")
             if not os.path.isfile(conf.word2vec_path):
                 train_embeddings(save_to_path=conf.word2vec_path,
-                                          embedding_size=conf.word_embedding_size,
-                                          minimal_frequency=conf.word2vec_min_word_freq,
-                                          train_path=TRAINING_FILEPATH,
-                                          validation_path=VALIDATION_FILEPATH,
-                                          num_workers=conf.word2vec_workers_count)
+                                 embedding_size=conf.word_embedding_size,
+                                 minimal_frequency=conf.word2vec_min_word_freq,
+                                 train_path=TRAINING_FILEPATH,
+                                 validation_path=VALIDATION_FILEPATH,
+                                 num_workers=conf.word2vec_workers_count)
             print("Loading word2vec embeddings")
             load_embedding(sess,
                            get_or_create_vocabulary(),
