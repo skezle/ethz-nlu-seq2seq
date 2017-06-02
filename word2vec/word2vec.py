@@ -23,7 +23,7 @@ def load_sentences(train_path, validation_path=None):
     f = open(train_path, 'r')
     for line in f:
         conversation = line.strip().split('\t')
-        for i in range(2):
+        for i in range(3):
             sentence = []
             for word in conversation[i].split():
                 sentence.append(word)

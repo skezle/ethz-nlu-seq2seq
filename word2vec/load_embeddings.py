@@ -22,7 +22,7 @@ def load_embedding(session, vocab, emb, path, dim_embedding, vocab_size):
             external_embedding[idx] = model[tok]
             matches += 1
         else:
-            print("%s not in embedding file" % tok)
+            # print("%s not in embedding file" % tok)
             external_embedding[idx] = np.random.uniform(low=-0.25, high=0.25, size=dim_embedding)
         
     print("%d words out of %d could be loaded" % (matches, vocab_size))
