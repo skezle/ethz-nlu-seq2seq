@@ -1,8 +1,5 @@
 import pickle
 import os.path
-import operator
-from numpy import array, transpose
-from math import ceil
 from config import Config as conf
 from data_utility import *
 import re
@@ -16,6 +13,54 @@ def load_conversations(filename, bullshit_lines, script):
 
     matching_quotationmarks = re.compile('\"(.*)\"')
     single_quotationmarks = re.compile('\"(.*)')
+
+    space_number_space = re.compile(" \d+ ")
+    tab_number_space = re.compile("\t\d+ ")
+    space_number_tab = re.compile("\d+\t")
+    tab_number_tab = re.compile("\t\d+\t")
+    tab_number = re.compile("\t\d+")
+    newline_number_space = re.compile("\n\d+ ")
+    number_space = re.compile("\d+ ")
+    dash_number_dash = re.compile("-\d+-")
+    dash_number = re.compile("-\d+")
+    number_dash = re.compile("\d+-")
+    number_st = re.compile("\d+st")
+    number_nd = re.compile("\d+nd")
+    number_rd = re.compile("\d+rd")
+    number_th = re.compile("\d+th")
+    number_am = re.compile("\d+am")
+    number_pm = re.compile("\d+pm")
+    number_m = re.compile("\d+m")
+    number_mm = re.compile("\d+mm")
+    number_a = re.compile("\d+a")
+    number_b = re.compile("\d+b")
+    number_c = re.compile("\d+c")
+    number_d = re.compile("\d+d")
+    number_g = re.compile("\d+g")
+    number_w = re.compile("\d+w")
+    number_k = re.compile("\d+k")
+    space_number_s = re.compile("\d+s")
+    number_dollar = re.compile("\d+\$")
+    dollar_number = re.compile("\$\d+")
+    number_plus = re.compile("\d+\+")
+    space_number_slash = re.compile(" \d+/")
+    slash_number_slash = re.compile("/\d+/")
+    number_slash = re.compile("\d+/")
+    slash_number = re.compile("/\d+")
+    number_b_slash = re.compile("\d+b/")
+    zeroh = re.compile("0h")
+    dash_tagnumber = re.compile("-<number>")
+    tagnumber_dash = re.compile("<number>-")
+
+
+    f_number = re.compile("f\d+")
+    e_number = re.compile("e\d+")
+    d_number = re.compile("d\d+")
+    c_number = re.compile("c\d+")
+    b_number = re.compile("b\d+")
+
+
+
 
     f = open(filename, 'r')
     convID = 0
@@ -31,12 +76,140 @@ def load_conversations(filename, bullshit_lines, script):
             if ((i + 1 < len(lineIDs)) and
                     (lineIDs[i] not in bullshit_lines) and
                     (lineIDs[i + 1] not in bullshit_lines)):
-                d1 = re.sub(r"([\w/'+$\s-]+|[^\w/'+$\s-]+)\s*", r"\1 ", script[lineIDs[i]])
-                d2 = re.sub(r"([\w/'+$\s-]+|[^\w/'+$\s-]+)\s*", r"\1 ", script[lineIDs[i+1]])
-                d1 = single_quotationmarks.sub(r"``\1", matching_quotationmarks.sub(r"``\1''", line))
-                d2 = single_quotationmarks.sub(r"``\1", matching_quotationmarks.sub(r"``\1''", line))
-                print(d1)
-                print(d2)
+
+                d1 = re.sub(r"([\w/'+$\s-]+|[^\w/'+$\s-]+)\s*", r"\1 ", script[lineIDs[i]].lower())
+                d2 = re.sub(r"([\w/'+$\s-]+|[^\w/'+$\s-]+)\s*", r"\1 ", script[lineIDs[i+1]].lower())
+                d1 = d1.replace("'", " ' ")
+                d2 = d2.replace("'", " ' ")
+                # codes and passwords
+                d1 = f_number.sub("f <number>", d1)
+                d2 = f_number.sub("f <number>", d2)
+                d1 = e_number.sub("e <number>", d1)
+                d2 = e_number.sub("e <number>", d2)
+                d1 = d_number.sub("d <number>", d1)
+                d2 = d_number.sub("d <number>", d2)
+                d1 = c_number.sub("c <number>", d1)
+                d2 = c_number.sub("c <number>", d2)
+                d1 = b_number.sub("b <number>", d1)
+                d2 = b_number.sub("b <number>", d2)
+                # address and apartments
+                d1 = number_b_slash.sub("<number> b / ", d1)
+                d2 = number_b_slash.sub("<number> b / ", d2)
+                d1 = number_a.sub("<number> a", d1)
+                d2 = number_a.sub("<number> a", d2)
+                d1 = number_b.sub("<number> b", d1)
+                d2 = number_b.sub("<number> b", d2)
+                d1 = number_c.sub("<number> c", d1)
+                d2 = number_c.sub("<number> c", d2)
+                d1 = number_d.sub("<number> d", d1)
+                d2 = number_d.sub("<number> d", d2)
+                d1 = number_g.sub("<number> g", d1)
+                d2 = number_g.sub("<number> g", d2)
+                # numbers with order numbers
+                d1 = number_st.sub("<number> st", d1)
+                d2 = number_st.sub("<number> st", d2)
+                d1 = number_nd.sub("<number> nd", d1)
+                d2 = number_nd.sub("<number> nd", d2)
+                d1 = number_rd.sub("<number> rd", d1)
+                d2 = number_rd.sub("<number> rd", d2)
+                d1 = number_th.sub("<number> th", d1)
+                d2 = number_th.sub("<number> th", d2)
+                d1 = number_am.sub("<number> am", d1)
+                d2 = number_am.sub("<number> am", d2)
+                d1 = number_pm.sub("<number> pm", d1)
+                d2 = number_pm.sub("<number> pm", d2)
+                # units and measurements
+                d1 = number_w.sub("<number> w", d1)
+                d2 = number_w.sub("<number> w", d2)
+                d1 = number_k.sub("<number> k", d1)
+                d2 = number_k.sub("<number> k", d2)
+                d1 = space_number_s.sub(" <number> s", d1)
+                d2 = space_number_s.sub(" <number> s", d2)
+                d1 = number_m.sub("<number> m", d1)
+                d2 = number_m.sub("<number> m", d2)
+                d1 = number_mm.sub("<number> mm", d1)
+                d2 = number_mm.sub("<number> mm", d2)
+                d1 = number_dollar.sub("<number> $", d1)
+                d2 = number_dollar.sub("<number> $", d2)
+                d1 = dollar_number.sub("$ <number>", d1)
+                d2 = dollar_number.sub("$ <number>", d2)
+                # d1 = re.sub("\t\d+ ", "\t<number> ", d1)
+                # d2 = re.sub("\t\d+ ", "\t<number> ", d2)
+                # d1 = re.sub("\t\d+\t", "\t<number>\t", d1)
+                # d2 = re.sub("\t\d+\t", "\t<number>\t", d2)
+                # d1 = re.sub(" \d+\t", " <number>\t", d1)
+                # d2 = re.sub(" \d+\t", " <number>\t", d2)
+                # numbers and spaces & dashes
+                # d1 = re.sub(" \d+-", " <number> -", d1)
+                # d2 = re.sub(" \d+-", " <number> -", d2)
+                # d1 = re.sub("\t\d+-", "\t<number> -", d1)
+                # d2 = re.sub("\t\d+-", "\t<number> -", d2)
+                # d1 = re.sub("-\d+\t", "- <number>\t", d1)
+                # d2 = re.sub("-\d+\t", "- <number>\t", d2)
+                # d1 = re.sub("-\d+ ", "- <number> ", d1)
+                # d2 = re.sub("-\d+ ", "- <number> ", d2)
+                # numbers and dashes from both sides
+                # twice because we have 1-2-3-4-5 (1st time applied on 2 and 4, 2nd time on 3)
+                d1 = dash_number_dash.sub("- <number> -", d1)
+                d2 = dash_number_dash.sub("- <number> -", d2)
+                d1 = dash_number_dash.sub("- <number> -", d1)
+                d2 = dash_number_dash.sub("- <number> -", d2)
+                d1 = dash_number.sub("- <number>", d1)
+                d2 = dash_number.sub("- <number>", d2)
+                d1 = number_dash.sub("<number> -", d1)
+                d2 = number_dash.sub("<number> -", d2)
+                # rational numbers
+                d1 = slash_number_slash.sub("/ <number> / ", d1)
+                d2 = slash_number_slash.sub("/ <number> / ", d2)
+                d1 = space_number_slash.sub(" <number> / ", d1)
+                d2 = space_number_slash.sub(" <number> / ", d2)
+                d1 = number_slash.sub("<number> / ", d1)
+                d2 = number_slash.sub("<number> / ", d2)
+                d1 = slash_number.sub(" / <number>", d1)
+                d2 = slash_number.sub(" / <number>", d2)
+                d1 = number_plus.sub("<number> + ", d1)
+                d2 = number_plus.sub("<number> + ", d2)
+
+                # numbers and spaces
+                d1 = space_number_space.sub(" <number> ", d1)
+                d2 = space_number_space.sub(" <number> ", d2)
+                # d1 = tab_number_space.sub("\t<number> ", d1)
+                # d2 = tab_number_space.sub("\t<number> ", d2)
+                # d1 = tab_number_tab.sub("\t<number>\t", d1)
+                # d2 = tab_number_tab.sub("\t<number>\t", d2)
+                d1 = space_number_tab.sub(" <number>\t", d1)
+                d2 = space_number_tab.sub(" <number>\t", d2)
+                d1 = space_number_space.sub(" <number> ", d1)
+                d2 = space_number_space.sub(" <number> ", d2)
+                # d1 = newline_number_space.sub("\n<number> ", d1)
+                # d2 = newline_number_space.sub("\n<number> ", d2)
+
+
+                # d1 = tab_number_plus.sub("\t<number> + ", d1)
+                # d2 = tab_number_plus.sub("\t<number> + ", d2)
+                # d1 = tab_number.sub("\t<number>", d1)
+                # d2 = tab_number.sub("\t<number>", d2)
+                d1 = number_space.sub("<number> ", d1)
+                d2 = number_space.sub("<number> ", d2)
+
+
+
+                # d1 = re.sub("\d+-", "<number> -", d1)
+                # d2 = re.sub("\d+-", "<number> -", d2)
+
+                d1 = zeroh.sub("oh", d1)
+                d2 = zeroh.sub("oh", d2)
+                d1 = dash_tagnumber.sub("- <number>", d1)
+                d2 = dash_tagnumber.sub("- <number>", d2)
+                d1 = tagnumber_dash.sub("<number> -", d1)
+                d2 = tagnumber_dash.sub("<number> -", d2)
+                d1 = d_number.sub("d <number>", d1)
+                d2 = d_number.sub("d <number>", d2)
+                d1 = single_quotationmarks.sub(r"``\1", matching_quotationmarks.sub(r"``\1''", d1))
+                d2 = single_quotationmarks.sub(r"``\1", matching_quotationmarks.sub(r"``\1''", d2))
+
+                #print(d1)
+                #print(d2)
                 dlg = [d1, d2]
                 conversations[convID] = dlg
                 convID = convID + 1
@@ -81,7 +254,7 @@ def triples_to_tuples_check(input_filepath):
         for i in range(3):
             q1 = triples[i].count("``")
             q2 = triples[i].count("''")
-            print("`` appears {} times and '' appears {} times".format(q1, q2))
+            #print("`` appears {} times and '' appears {} times".format(q1, q2))
             if q1 != q2:
                 count = count + 1
             else:
@@ -109,7 +282,7 @@ def tuples_check(filename):
             q1 = dialogue[i].count("``")
             q2 = dialogue[i].count("''")
             q3 = dialogue[i].count("\"")
-            print("`` appears {} times and '' appears {} times and \" appears {} times".format(q1, q2, q3))
+            #print("`` appears {} times and '' appears {} times and \" appears {} times".format(q1, q2, q3))
             if q1 != q2:
                 count = count + 1
             else:
@@ -129,10 +302,10 @@ def tuples_check(filename):
     print("Count of sentences with ODD number of \" is: {}".format(count_quotes_odd))
 
 def mainFunc():
-    # script, bullshit_lines = load_lines(conf.CORNELL_lines_path)
-    # conversations, convID = load_conversations(conf.CORNELL_conversations_path, bullshit_lines, script)
-    # #print(conversations)
-    # dump_Tuples(conf.CORNELL_TUPLES_PATH, conversations, convID)
+    script, bullshit_lines = load_lines(conf.CORNELL_lines_path)
+    conversations, convID = load_conversations(conf.CORNELL_conversations_path, bullshit_lines, script)
+    #print(conversations)
+    dump_Tuples(conf.CORNELL_TUPLES_PATH, conversations, convID)
     triples_to_tuples_check(TRAINING_FILEPATH)
     tuples_check(conf.CORNELL_TUPLES_PATH)
 
@@ -140,3 +313,8 @@ def mainFunc():
 
 if __name__ == "__main__":
     mainFunc()
+
+
+
+# d1 = re.sub(" \d+ ", " <number> ", d1)
+# d2 = re.sub(" \d+ ", " <number> ", d2)

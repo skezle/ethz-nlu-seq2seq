@@ -21,3 +21,9 @@ class Config:
     word2vec_path = word2vec_directory + "/wordembeddings_" + str(word_embedding_size) + ".word2vec"
     word2vec_min_word_freq = 1
     word2vec_workers_count = 4
+
+    CORNELL_base_path = 'data/cornell_movie_dialogs_corpus'
+    CORNELL_lines_path = CORNELL_base_path + '/movie_lines.txt'
+    CORNELL_conversations_path = CORNELL_base_path + '/movie_conversations.txt'
+    CORNELL_TUPLES_PATH = CORNELL_base_path + '/Training_Cornell_Shuffled_Dataset.txt'
+
