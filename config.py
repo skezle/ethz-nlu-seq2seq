@@ -12,9 +12,9 @@ class Config:
     decoder_cell = tf.contrib.rnn.GRUCell(decoder_cell_size) ## less params
     batch_size = 30
     log_directory = 'logs/'
-    num_epochs = 1
-    validation_summary_frequency = 10
-    checkpoint_frequency = 5
+    num_epochs = 10
+    validation_summary_frequency = 100
+    checkpoint_frequency = 1000
     max_decoder_inference_length = 30
     use_word2vec = True
     word_embedding_size = 200
