@@ -2,12 +2,12 @@ import tensorflow as tf
 
 class Config:
     vocabulary_size = 20000
-    encoder_cell_size = 100
-    ##encoder_cell = tf.contrib.rnn.LSTMCell(encoder_cell_size)
-    encoder_cell = tf.contrib.rnn.GRUCell(encoder_cell_size) ## less params
+    encoder_cell_size = 200
+    encoder_cell = tf.contrib.rnn.LSTMCell(encoder_cell_size)
+    ##encoder_cell = tf.contrib.rnn.GRUCell(encoder_cell_size) ## less params
     decoder_cell_size = 200
-    ##decoder_cell = tf.contrib.rnn.LSTMCell(decoder_cell_size)
-    decoder_cell = tf.contrib.rnn.GRUCell(decoder_cell_size) ## less params
+    decoder_cell = tf.contrib.rnn.LSTMCell(decoder_cell_size)
+    ##decoder_cell = tf.contrib.rnn.GRUCell(decoder_cell_size) ## less params
     batch_size = 30
     log_directory = 'logs/'
     num_epochs = 1
