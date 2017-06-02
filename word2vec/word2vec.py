@@ -1,8 +1,11 @@
 import gensim
 import logging
+import os
+import cornell_loading
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
+from config import Config as conf
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
@@ -36,12 +39,25 @@ def load_sentences(train_path, validation_path=None):
                     sentence.append(word)
                 sentences.append(sentence)
 
+    if conf.use_CORNELL_for_word2vec:
+        if not os.path.isfile(conf.CORNELL_TUPLES_PATH):
+            cornell_loading.create_Cornell_tuples(conf.CORNELL_lines_path, conf.CORNELL_conversations_path, conf.CORNELL_TUPLES_PATH)
+        f = open(conf.CORNELL_TUPLES_PATH, 'r')
+        for line in f:
+            conversation = line.strip().split('\t')
+            for i in range(3):
+                sentence = []
+                for word in conversation[i].split():
+                    sentence.append(word)
+                sentences.append(sentence)
+
     return sentences
 
 
 def train_embeddings(save_to_path, embedding_size, minimal_frequency, train_path, validation_path=None, num_workers=4):
     print("Training word2vec model with following parameters: ")
     print("\t dataset: " + train_path + ", validation set used: " + validation_path)
+    print("\t Cornell dataset used: " + conf.use_CORNELL_for_word2vec)
     print("\t word embeddings size: " + str(embedding_size))
     print("\t word embeddings saved on path: {}".format(save_to_path))
     model = gensim.models.Word2Vec(load_sentences(train_path, validation_path),
