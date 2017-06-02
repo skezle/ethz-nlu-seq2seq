@@ -4,22 +4,18 @@ from config import Config as conf
 from data_utility import *
 import re
 
-
 # bullshit_lines = ['L474', 'L24609', 'L239088', 'L283548', 'L303243', 'L535288', 'L535203',
 #                   'L535163', 'L535148', 'L535133', 'L541062', 'L540986', 'L540485', 'L540483',
 #                   'L540476', 'L540816', 'L619064', 'L50129', 'L78957']
 
 def load_conversations(filename, bullshit_lines, script):
+    print("Loading dialogue turns from {} and applyting regular expressions..".format(filename))
 
     matching_quotationmarks = re.compile('\"(.*)\"')
     single_quotationmarks = re.compile('\"(.*)')
 
     space_number_space = re.compile(" \d+ ")
-    tab_number_space = re.compile("\t\d+ ")
     space_number_tab = re.compile("\d+\t")
-    tab_number_tab = re.compile("\t\d+\t")
-    tab_number = re.compile("\t\d+")
-    newline_number_space = re.compile("\n\d+ ")
     number_space = re.compile("\d+ ")
     dash_number_dash = re.compile("-\d+-")
     dash_number = re.compile("-\d+")
@@ -51,16 +47,11 @@ def load_conversations(filename, bullshit_lines, script):
     zeroh = re.compile("0h")
     dash_tagnumber = re.compile("-<number>")
     tagnumber_dash = re.compile("<number>-")
-
-
     f_number = re.compile("f\d+")
     e_number = re.compile("e\d+")
     d_number = re.compile("d\d+")
     c_number = re.compile("c\d+")
     b_number = re.compile("b\d+")
-
-
-
 
     f = open(filename, 'r')
     convID = 0
@@ -82,134 +73,58 @@ def load_conversations(filename, bullshit_lines, script):
                 d1 = d1.replace("'", " ' ")
                 d2 = d2.replace("'", " ' ")
                 # codes and passwords
-                d1 = f_number.sub("f <number>", d1)
-                d2 = f_number.sub("f <number>", d2)
-                d1 = e_number.sub("e <number>", d1)
-                d2 = e_number.sub("e <number>", d2)
-                d1 = d_number.sub("d <number>", d1)
-                d2 = d_number.sub("d <number>", d2)
-                d1 = c_number.sub("c <number>", d1)
-                d2 = c_number.sub("c <number>", d2)
-                d1 = b_number.sub("b <number>", d1)
-                d2 = b_number.sub("b <number>", d2)
+                d1 = f_number.sub("f <number>", d1);    d2 = f_number.sub("f <number>", d2)
+                d1 = e_number.sub("e <number>", d1);    d2 = e_number.sub("e <number>", d2)
+                d1 = d_number.sub("d <number>", d1);    d2 = d_number.sub("d <number>", d2)
+                d1 = c_number.sub("c <number>", d1);    d2 = c_number.sub("c <number>", d2)
+                d1 = b_number.sub("b <number>", d1);    d2 = b_number.sub("b <number>", d2)
                 # address and apartments
-                d1 = number_b_slash.sub("<number> b / ", d1)
-                d2 = number_b_slash.sub("<number> b / ", d2)
-                d1 = number_a.sub("<number> a", d1)
-                d2 = number_a.sub("<number> a", d2)
-                d1 = number_b.sub("<number> b", d1)
-                d2 = number_b.sub("<number> b", d2)
-                d1 = number_c.sub("<number> c", d1)
-                d2 = number_c.sub("<number> c", d2)
-                d1 = number_d.sub("<number> d", d1)
-                d2 = number_d.sub("<number> d", d2)
-                d1 = number_g.sub("<number> g", d1)
-                d2 = number_g.sub("<number> g", d2)
+                d1 = number_b_slash.sub("<number> b / ", d1);    d2 = number_b_slash.sub("<number> b / ", d2)
+                d1 = number_a.sub("<number> a", d1);    d2 = number_a.sub("<number> a", d2)
+                d1 = number_b.sub("<number> b", d1);    d2 = number_b.sub("<number> b", d2)
+                d1 = number_c.sub("<number> c", d1);    d2 = number_c.sub("<number> c", d2)
+                d1 = number_d.sub("<number> d", d1);    d2 = number_d.sub("<number> d", d2)
+                d1 = number_g.sub("<number> g", d1);    d2 = number_g.sub("<number> g", d2)
                 # numbers with order numbers
-                d1 = number_st.sub("<number> st", d1)
-                d2 = number_st.sub("<number> st", d2)
-                d1 = number_nd.sub("<number> nd", d1)
-                d2 = number_nd.sub("<number> nd", d2)
-                d1 = number_rd.sub("<number> rd", d1)
-                d2 = number_rd.sub("<number> rd", d2)
-                d1 = number_th.sub("<number> th", d1)
-                d2 = number_th.sub("<number> th", d2)
-                d1 = number_am.sub("<number> am", d1)
-                d2 = number_am.sub("<number> am", d2)
-                d1 = number_pm.sub("<number> pm", d1)
-                d2 = number_pm.sub("<number> pm", d2)
+                d1 = number_st.sub("<number> st", d1);  d2 = number_st.sub("<number> st", d2)
+                d1 = number_nd.sub("<number> nd", d1);  d2 = number_nd.sub("<number> nd", d2)
+                d1 = number_rd.sub("<number> rd", d1);  d2 = number_rd.sub("<number> rd", d2)
+                d1 = number_th.sub("<number> th", d1);  d2 = number_th.sub("<number> th", d2)
+                d1 = number_am.sub("<number> am", d1);  d2 = number_am.sub("<number> am", d2)
+                d1 = number_pm.sub("<number> pm", d1);  d2 = number_pm.sub("<number> pm", d2)
                 # units and measurements
-                d1 = number_w.sub("<number> w", d1)
-                d2 = number_w.sub("<number> w", d2)
-                d1 = number_k.sub("<number> k", d1)
-                d2 = number_k.sub("<number> k", d2)
-                d1 = space_number_s.sub(" <number> s", d1)
-                d2 = space_number_s.sub(" <number> s", d2)
-                d1 = number_m.sub("<number> m", d1)
-                d2 = number_m.sub("<number> m", d2)
-                d1 = number_mm.sub("<number> mm", d1)
-                d2 = number_mm.sub("<number> mm", d2)
-                d1 = number_dollar.sub("<number> $", d1)
-                d2 = number_dollar.sub("<number> $", d2)
-                d1 = dollar_number.sub("$ <number>", d1)
-                d2 = dollar_number.sub("$ <number>", d2)
-                # d1 = re.sub("\t\d+ ", "\t<number> ", d1)
-                # d2 = re.sub("\t\d+ ", "\t<number> ", d2)
-                # d1 = re.sub("\t\d+\t", "\t<number>\t", d1)
-                # d2 = re.sub("\t\d+\t", "\t<number>\t", d2)
-                # d1 = re.sub(" \d+\t", " <number>\t", d1)
-                # d2 = re.sub(" \d+\t", " <number>\t", d2)
-                # numbers and spaces & dashes
-                # d1 = re.sub(" \d+-", " <number> -", d1)
-                # d2 = re.sub(" \d+-", " <number> -", d2)
-                # d1 = re.sub("\t\d+-", "\t<number> -", d1)
-                # d2 = re.sub("\t\d+-", "\t<number> -", d2)
-                # d1 = re.sub("-\d+\t", "- <number>\t", d1)
-                # d2 = re.sub("-\d+\t", "- <number>\t", d2)
-                # d1 = re.sub("-\d+ ", "- <number> ", d1)
-                # d2 = re.sub("-\d+ ", "- <number> ", d2)
-                # numbers and dashes from both sides
-                # twice because we have 1-2-3-4-5 (1st time applied on 2 and 4, 2nd time on 3)
-                d1 = dash_number_dash.sub("- <number> -", d1)
-                d2 = dash_number_dash.sub("- <number> -", d2)
-                d1 = dash_number_dash.sub("- <number> -", d1)
-                d2 = dash_number_dash.sub("- <number> -", d2)
-                d1 = dash_number.sub("- <number>", d1)
-                d2 = dash_number.sub("- <number>", d2)
-                d1 = number_dash.sub("<number> -", d1)
-                d2 = number_dash.sub("<number> -", d2)
+                d1 = number_w.sub("<number> w", d1);        d2 = number_w.sub("<number> w", d2)
+                d1 = number_k.sub("<number> k", d1);        d2 = number_k.sub("<number> k", d2)
+                d1 = space_number_s.sub(" <number> s", d1); d2 = space_number_s.sub(" <number> s", d2)
+                d1 = number_m.sub("<number> m", d1);        d2 = number_m.sub("<number> m", d2)
+                d1 = number_mm.sub("<number> mm", d1);      d2 = number_mm.sub("<number> mm", d2)
+                d1 = number_dollar.sub("<number> $", d1);   d2 = number_dollar.sub("<number> $", d2)
+                d1 = dollar_number.sub("$ <number>", d1);   d2 = dollar_number.sub("$ <number>", d2)
+                # number and dashes
+                d1 = dash_number_dash.sub("- <number> -", d1);  d2 = dash_number_dash.sub("- <number> -", d2)
+                d1 = dash_number_dash.sub("- <number> -", d1);  d2 = dash_number_dash.sub("- <number> -", d2)
+                d1 = dash_number.sub("- <number>", d1);         d2 = dash_number.sub("- <number>", d2)
+                d1 = number_dash.sub("<number> -", d1);         d2 = number_dash.sub("<number> -", d2)
                 # rational numbers
-                d1 = slash_number_slash.sub("/ <number> / ", d1)
-                d2 = slash_number_slash.sub("/ <number> / ", d2)
-                d1 = space_number_slash.sub(" <number> / ", d1)
-                d2 = space_number_slash.sub(" <number> / ", d2)
-                d1 = number_slash.sub("<number> / ", d1)
-                d2 = number_slash.sub("<number> / ", d2)
-                d1 = slash_number.sub(" / <number>", d1)
-                d2 = slash_number.sub(" / <number>", d2)
-                d1 = number_plus.sub("<number> + ", d1)
-                d2 = number_plus.sub("<number> + ", d2)
-
+                d1 = slash_number_slash.sub("/ <number> / ", d1);   d2 = slash_number_slash.sub("/ <number> / ", d2)
+                d1 = space_number_slash.sub(" <number> / ", d1);    d2 = space_number_slash.sub(" <number> / ", d2)
+                d1 = number_slash.sub("<number> / ", d1);           d2 = number_slash.sub("<number> / ", d2)
+                d1 = slash_number.sub(" / <number>", d1);           d2 = slash_number.sub(" / <number>", d2)
+                d1 = number_plus.sub("<number> + ", d1);            d2 = number_plus.sub("<number> + ", d2)
                 # numbers and spaces
-                d1 = space_number_space.sub(" <number> ", d1)
-                d2 = space_number_space.sub(" <number> ", d2)
-                # d1 = tab_number_space.sub("\t<number> ", d1)
-                # d2 = tab_number_space.sub("\t<number> ", d2)
-                # d1 = tab_number_tab.sub("\t<number>\t", d1)
-                # d2 = tab_number_tab.sub("\t<number>\t", d2)
-                d1 = space_number_tab.sub(" <number>\t", d1)
-                d2 = space_number_tab.sub(" <number>\t", d2)
-                d1 = space_number_space.sub(" <number> ", d1)
-                d2 = space_number_space.sub(" <number> ", d2)
-                # d1 = newline_number_space.sub("\n<number> ", d1)
-                # d2 = newline_number_space.sub("\n<number> ", d2)
-
-
-                # d1 = tab_number_plus.sub("\t<number> + ", d1)
-                # d2 = tab_number_plus.sub("\t<number> + ", d2)
-                # d1 = tab_number.sub("\t<number>", d1)
-                # d2 = tab_number.sub("\t<number>", d2)
-                d1 = number_space.sub("<number> ", d1)
-                d2 = number_space.sub("<number> ", d2)
-
-
-
-                # d1 = re.sub("\d+-", "<number> -", d1)
-                # d2 = re.sub("\d+-", "<number> -", d2)
-
-                d1 = zeroh.sub("oh", d1)
-                d2 = zeroh.sub("oh", d2)
-                d1 = dash_tagnumber.sub("- <number>", d1)
-                d2 = dash_tagnumber.sub("- <number>", d2)
-                d1 = tagnumber_dash.sub("<number> -", d1)
-                d2 = tagnumber_dash.sub("<number> -", d2)
-                d1 = d_number.sub("d <number>", d1)
-                d2 = d_number.sub("d <number>", d2)
+                d1 = space_number_space.sub(" <number> ", d1);  d2 = space_number_space.sub(" <number> ", d2)
+                d1 = space_number_tab.sub(" <number>\t", d1);   d2 = space_number_tab.sub(" <number>\t", d2)
+                d1 = space_number_space.sub(" <number> ", d1);  d2 = space_number_space.sub(" <number> ", d2)
+                d1 = number_space.sub("<number> ", d1);         d2 = number_space.sub("<number> ", d2)
+                # misc
+                d1 = zeroh.sub("oh", d1);                   d2 = zeroh.sub("oh", d2)
+                d1 = dash_tagnumber.sub("- <number>", d1);  d2 = dash_tagnumber.sub("- <number>", d2)
+                d1 = tagnumber_dash.sub("<number> -", d1);  d2 = tagnumber_dash.sub("<number> -", d2)
+                d1 = d_number.sub("d <number>", d1);        d2 = d_number.sub("d <number>", d2)
+                # quotes
                 d1 = single_quotationmarks.sub(r"``\1", matching_quotationmarks.sub(r"``\1''", d1))
                 d2 = single_quotationmarks.sub(r"``\1", matching_quotationmarks.sub(r"``\1''", d2))
 
-                #print(d1)
-                #print(d2)
                 dlg = [d1, d2]
                 conversations[convID] = dlg
                 convID = convID + 1
@@ -218,8 +133,9 @@ def load_conversations(filename, bullshit_lines, script):
 
 
 def load_lines(filename):
-    f = open(filename, 'r', encoding="ISO-8859-1")
+    print("Loading script lines from: {}".format(filename))
 
+    f = open(filename, 'r', encoding="ISO-8859-1")
     script = {}
     bullshit_lines = []
 
@@ -230,11 +146,12 @@ def load_lines(filename):
         else:
             script[script_line[0]] = script_line[4]
 
-    print(bullshit_lines)
+    print("Number of empty lines: {}".format(len(bullshit_lines)))
     f.close()
     return script, bullshit_lines
 
 def dump_Tuples(filename, conversations, convID):
+    print("Dumping cleaned tuples on path {}".format(filename))
     f = open(filename, 'w')
 
     for i in range(convID):
@@ -301,20 +218,15 @@ def tuples_check(filename):
     print("Count of sentences with EVEN number of \" is: {}".format(count_quotes_even))
     print("Count of sentences with ODD number of \" is: {}".format(count_quotes_odd))
 
+
+def create_Cornell_tuples(lines_path, conversations_path, tumples_path):
+    script, bullshit_lines = load_lines(lines_path)
+    conversations, convID = load_conversations(conversations_path, bullshit_lines, script)
+    dump_Tuples(tumples_path, conversations, convID)
+
+
 def mainFunc():
-    script, bullshit_lines = load_lines(conf.CORNELL_lines_path)
-    conversations, convID = load_conversations(conf.CORNELL_conversations_path, bullshit_lines, script)
-    #print(conversations)
-    dump_Tuples(conf.CORNELL_TUPLES_PATH, conversations, convID)
-    triples_to_tuples_check(TRAINING_FILEPATH)
-    tuples_check(conf.CORNELL_TUPLES_PATH)
-
-
+    create_Cornell_tuples(conf.CORNELL_lines_path, conf.CORNELL_conversations_path, conf.CORNELL_TUPLES_PATH)
 
 if __name__ == "__main__":
     mainFunc()
-
-
-
-# d1 = re.sub(" \d+ ", " <number> ", d1)
-# d2 = re.sub(" \d+ ", " <number> ", d2)
