@@ -60,6 +60,7 @@ class BaselineModel():
 
         self._init_decoder()
 
+        self._init_perplexity()
         self._init_optimizer()
 
         self._init_summary()
@@ -118,6 +119,7 @@ class BaselineModel():
             self.decoder_train_length = self.decoder_targets_length + 1
 
             decoder_train_targets = tf.concat([self.decoder_targets, PAD_SLICE], axis=0)
+            self.interm_decoder_train_targets = tf.shape(decoder_train_targets)
             decoder_train_targets_seq_len, _ = tf.unstack(tf.shape(decoder_train_targets))
 
             eos_multiplication_mask = tf.one_hot(self.decoder_train_length - 1,
@@ -300,6 +302,19 @@ class BaselineModel():
         gradients, _ = tf.clip_by_global_norm(gradients, 10.0)
         self.train_op = optimizer.apply_gradients(zip(gradients, variables))
 
+    def _init_perplexity(self):
+        logits = tf.transpose(self.decoder_logits_inference, [1, 0, 2])
+        targets = tf.transpose(self.decoder_train_targets, [1, 0])
+        self.logits_shape_orig = tf.shape(self.decoder_logits_inference)
+        self.targets_shape_orig = tf.shape(self.decoder_train_targets)
+        self.logits_shape = tf.shape(logits)
+        self.targets_shape = tf.shape(targets)
+
+        self.perplexity = seq2seq.sequence_loss(logits=logits, targets=targets,
+                                          weights=self.loss_weights,
+                                          average_across_timesteps=True,
+                                          average_across_batch=False
+                                          )
     def _init_summary(self):
         tf.summary.scalar("loss", self.loss)
         self.summary_op = tf.summary.merge_all()
@@ -317,5 +332,14 @@ class BaselineModel():
         return {
             self.encoder_inputs: input_seq,
             self.encoder_inputs_length: input_seq_len,
+            self.dropout_keep_prob: 1,
+        }
+
+    def make_perplexity_inputs(self, input_seq, input_seq_len, target_seq, target_seq_len):
+        return {
+            self.encoder_inputs: input_seq,
+            self.encoder_inputs_length: input_seq_len,
+            self.decoder_targets: target_seq,
+            self.decoder_targets_length: target_seq_len,
             self.dropout_keep_prob: 1,
         }

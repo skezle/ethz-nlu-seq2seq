@@ -89,36 +89,18 @@ def mainFunc(argv):
 
         is_first_tuple = True
         for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False):
-            feed_dict = model.make_train_inputs(data_batch, data_sentence_lengths, label_batch, label_sentence_lengths)
-
-            softmax_predictions = sess.run(model.decoder_softmax_train, feed_dict)
-            # softmax_predictions.shape = (max_sentence_len, batch_size, vocabulary_size)
-
-            # Perplexity calculation
-            for sentID in range(len(label_sentence_lengths)): # Loop 
-                word_probs = []
-                # As long as we havent reached the maximum sentence length or seen the <eos>
-                for wordID in range(label_sentence_lengths[sentID]):
-                    ground_truth_word_index = label_batch[wordID, sentID]
-                    prob = softmax_predictions[wordID,sentID,ground_truth_word_index]
-                    word_probs.append(prob)
-
-                # Our bucketing function doesn't add <eos>, so we
-                # manually add the probability of <eos> here.
-                word_probs.append(
-                    softmax_predictions[
-                            label_sentence_lengths[sentID], 
-                            sentID, 
-                            END_TOKEN_INDEX])
-                log_probs = np.log(word_probs)
-
-                perplexity = 2**(-1.0*log_probs.mean())
-                
+            feed_dict = model.make_perplexity_inputs(data_batch, data_sentence_lengths, label_batch, label_sentence_lengths)
+            print(sess.run([model.interm_decoder_train_targets], feed_dict))
+            print(sess.run([model.logits_shape_orig, model.logits_shape, model.targets_shape_orig, model.targets_shape], feed_dict))
+            log_perplexities = sess.run(model.perplexity, feed_dict)
+            perplexities = np.exp(log_perplexities)
+            is_first_tuple = True
+            for perp in perplexities:
                 if is_first_tuple:
-                    print(perplexity, end=' ')
+                    print(perp, end=' ')
                     is_first_tuple = False
                 else:
-                    print(perplexity)
+                    print(perp)
                     is_first_tuple = True
             
             global_step += 1
