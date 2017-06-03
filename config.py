@@ -26,3 +26,6 @@ class Config:
     word2vec_path = word2vec_directory + "/wordembeddings_" + str(word_embedding_size) + ".word2vec"
     word2vec_min_word_freq = 1
     word2vec_workers_count = 4
+
+    beam_width = 5
+    beam_length_penalty_weight = 0.0
