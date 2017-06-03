@@ -222,19 +222,27 @@ class BaselineModel():
                     num_decoder_symbols=self.vocab_size,
                 )
             else:
-
                 # attention_states: size [batch_size, max_time, num_units]
-                attention_states = tf.transpose(self.encoder_outputs, [1, 0, 2])
+                attention_states = tf.transpose(self.encoder_outputs, [1, 0, 2]) ## permutation of dimentions is [0,1,2] to [1,0,2]
 
+                # Prepare keys/values/functions for attention.
+                # attention_option: how to compute attention, either "luong" or "bahdanau".
+                # "bahdanau": additive (Bahdanau et al., ICLR'2015)
+                # "luong": multiplicative (Luong et al., EMNLP'2015)
+                # attention_keys: linear combination of encoder outputs and decoder hidden units
+                # attention_values: encoder outputs
+                # attention_score_fn: function which calculates the score between key and target states
+                # attention_construct_fn: function constructs attention vector
                 (attention_keys,
                 attention_values,
                 attention_score_fn,
                 attention_construct_fn) = seq2seq.prepare_attention(
-                    attention_states=attention_states,
+                    attention_states=attention_states, ## encoder outputs for attention to 'attend to'
                     attention_option="bahdanau",
                     num_units=self.decoder_hidden_units,
                 )
 
+                ## attention model training function
                 decoder_fn_train = seq2seq.attention_decoder_fn_train(
                     encoder_state=self.encoder_state, ## output of the encoder
                     attention_keys=attention_keys,
@@ -244,6 +252,7 @@ class BaselineModel():
                     name='attention_decoder'
                 )
 
+                ## attention model for inference
                 decoder_fn_inference = seq2seq.attention_decoder_fn_inference(
                     output_fn=output_fn,
                     encoder_state=self.encoder_state, ## output of the encoder
@@ -258,6 +267,7 @@ class BaselineModel():
                     num_decoder_symbols=self.vocab_size,
                 )
 
+            ## Training
             (self.decoder_outputs_train,
              self.decoder_state_train,
              self.decoder_context_state_train) = (
@@ -278,6 +288,7 @@ class BaselineModel():
 
             scope.reuse_variables()
 
+            ## Prediction
             (self.decoder_logits_inference,
              self.decoder_state_inference,
              self.decoder_context_state_inference) = (

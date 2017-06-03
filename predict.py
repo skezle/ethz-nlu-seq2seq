@@ -37,11 +37,11 @@ def mainFunc(argv):
         elif opt in ("-n", "--num_cores"):
             num_cores = int(arg)
         elif opt in ("-x", "--experiment"):
-            if arg in ("baseline"):
+            if arg in ("baseline", "attention"):
                 experiment = arg
             else:
                 printUsage()
-                sys.exit(2) 
+                sys.exit(2)
         elif opt in ("-o", "--output"):
             if arg != "":
                 output_filepath = arg
@@ -71,10 +71,21 @@ def mainFunc(argv):
                               decoder_cell=conf.decoder_cell,
                               vocab_size=conf.vocabulary_size,
                               embedding_size=conf.word_embedding_size,
-                              bidirectional=False,
+                              bidirectional=conf.bidirectional_encoder,
                               attention=False,
                               dropout=conf.use_dropout,
                               num_layers=conf.num_layers)
+
+    elif experiment == "attention":
+        model = BaselineModel(encoder_cell=conf.encoder_cell,
+                              decoder_cell=conf.decoder_cell,
+                              vocab_size=conf.vocabulary_size,
+                              embedding_size=conf.word_embedding_size,
+                              bidirectional=conf.bidirectional_encoder,
+                              attention=True,
+                              dropout=conf.use_dropout,
+                              num_layers=conf.num_layers)
+
     assert model != None
     # Materialize validation data
     validation_enc_inputs, _, word_2_index, index_2_word = get_data_by_type('eval')
@@ -97,7 +108,7 @@ def mainFunc(argv):
                 predictions = sess.run(model.decoder_prediction_inference, feed_dict).T
                 truncated_predictions = truncate_after_eos(predictions)
                 out.writelines(map(maptoword, truncated_predictions))
-                
+
                 global_step += 1
 
 if __name__ == "__main__":
