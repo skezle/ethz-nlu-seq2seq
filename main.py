@@ -81,6 +81,10 @@ def mainFunc(argv):
     assert model != None
     print("=== GETTING DATA BY TYPE = TRAIN ===")
     enc_inputs, dec_inputs, word_2_index, index_2_word = get_data_by_type('train')
+    print("***********")
+    print("Encoder inputs length {}".format(len(enc_inputs)))
+    print("Decoder inputs length {}".format(len(dec_inputs)))
+    print("***********")
     # Materialize validation data
     print("=== GETTING DATA BY TYPE = EVAL ===")
     validation_enc_inputs, validation_dec_inputs, _, _ = get_data_by_type('eval')
