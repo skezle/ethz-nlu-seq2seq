@@ -21,7 +21,7 @@ def mainFunc(argv):
     def printUsage():
         print('main.py -n <num_cores> -x <experiment>')
         print('num_cores = Number of cores requested from the cluster. Set to -1 to leave unset')
-        print('experiment = experiment setup that should be executed. e.g \'baseline\'')
+        print('experiment = experiment setup that should be executed. e.g \'baseline\' or \'attention\'')
         print('tag = optional tag or name to distinguish the runs, e.g. \'bidirect3layers\' ')
 
     num_cores = -1
@@ -40,7 +40,7 @@ def mainFunc(argv):
         elif opt in ("-n", "--num_cores"):
             num_cores = int(arg)
         elif opt in ("-x", "--experiment"):
-            if arg in ("baseline"):
+            if arg in ("baseline", "attention"):
                 experiment = arg
             else:
                 printUsage()
@@ -63,15 +63,28 @@ def mainFunc(argv):
                               decoder_cell=conf.decoder_cell,
                               vocab_size=conf.vocabulary_size,
                               embedding_size=conf.word_embedding_size,
-                              bidirectional=False,
-                              attention=False)
+                              bidirectional=conf.bidirectional_encoder,
+                              attention=False,
+                              dropout=conf.use_dropout,
+                              num_layers=conf.num_layers)
+
+    elif experiment == "attention":
+        model = BaselineModel(encoder_cell=conf.encoder_cell,
+                              decoder_cell=conf.decoder_cell,
+                              vocab_size=conf.vocabulary_size,
+                              embedding_size=conf.word_embedding_size,
+                              bidirectional=conf.bidirectional_encoder,
+                              attention=True,
+                              dropout=conf.use_dropout,
+                              num_layers=conf.num_layers)
+
     assert model != None
     print("=== GETTING DATA BY TYPE = TRAIN ===")
     enc_inputs, dec_inputs, word_2_index, index_2_word = get_data_by_type('train')
     # Materialize validation data
     print("=== GETTING DATA BY TYPE = EVAL ===")
     validation_enc_inputs, validation_dec_inputs, _, _ = get_data_by_type('eval')
-    validation_data = list(bucket_by_sequence_length(validation_enc_inputs, validation_dec_inputs, conf.batch_size))
+    validation_data = list(bucket_by_sequence_length(validation_enc_inputs, validation_dec_inputs, conf.batch_size, filter_long_sent=False))
     
     print("Starting TensorFlow session")
     with tf.Session(config=configProto) as sess:
@@ -88,21 +101,19 @@ def mainFunc(argv):
         train_writer        = tf.summary.FileWriter(train_logfolderPath, graph=tf.get_default_graph())
         validation_writer   = tf.summary.FileWriter("{}{}{}-validation-{}".format(conf.log_directory, experiment, tag_string, timestamp), graph=tf.get_default_graph())
 
+        copy_config(train_logfolderPath) # Copies the current config.py to the log directory
         sess.run(tf.global_variables_initializer())
 
         if conf.use_word2vec:
             print("Using word2vec embeddings")
             if not os.path.isfile(conf.word2vec_path):
-                # if conf.use_CORNELL_for_word2vec:
-                #     train_sentences = conf.both_datasets_tuples_filepath
-                # else:
                 train_sentences = TRAINING_FILEPATH
                 train_embeddings(save_to_path=conf.word2vec_path,
-                                          embedding_size=conf.word_embedding_size,
-                                          minimal_frequency=conf.word2vec_min_word_freq,
-                                          train_tuples_path=train_sentences,
-                                          validation_path=None,
-                                          num_workers=conf.word2vec_workers_count)
+                                  embedding_size=conf.word_embedding_size,
+                                  minimal_frequency=conf.word2vec_min_word_freq,
+                                  train_tuples_path=train_sentences,
+                                  validation_path=None,
+                                  num_workers=conf.word2vec_workers_count)
             print("Loading word2vec embeddings")
             load_embedding(sess,
                            get_or_create_vocabulary(),
@@ -110,15 +121,20 @@ def mainFunc(argv):
                            conf.word2vec_path,
                            conf.word_embedding_size,
                            conf.vocabulary_size)
-
+        sess.graph.finalize()
         print("Starting training")
         for i in range(conf.num_epochs):
-            batch_in_epoch = 0
             print("Training epoch {}".format(i))
             for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size), total = ceil(len(enc_inputs) / conf.batch_size)):
-                batch_in_epoch += 1
                 feed_dict = model.make_train_inputs(data_batch, data_sentence_lengths, label_batch, label_sentence_lengths)
-                _, train_summary = sess.run([model.train_op, model.summary_op], feed_dict)
+                run_options = None
+                run_metadata = None
+                if global_step % conf.trace_frequency == 0:
+                    run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                    run_metadata = tf.RunMetadata()
+                _, train_summary = sess.run([model.train_op, model.summary_op], feed_dict, options=run_options, run_metadata=run_metadata)
+                if global_step % conf.trace_frequency == 0:
+                    train_writer.add_run_metadata(run_metadata, "step{}".format(global_step))
                 train_writer.add_summary(train_summary, global_step)
 
                 if global_step % conf.validation_summary_frequency == 0:#
@@ -131,6 +147,9 @@ def mainFunc(argv):
                 if global_step % conf.checkpoint_frequency == 0 :
                     saver.save(sess, os.path.join(train_logfolderPath, "{}{}-{}-ep{}.ckpt".format(experiment, tag_string, timestamp, i)), global_step=global_step)
                 global_step += 1
+
+        saver.save(sess, os.path.join(train_logfolderPath, "{}{}-{}-ep{}-final.ckpt".format(experiment, tag_string, timestamp, conf.num_epochs)))
+        print("Done with training for {} epochs".format(conf.num_epochs))
 
 if __name__ == "__main__":
     mainFunc(sys.argv[1:])

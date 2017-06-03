@@ -9,14 +9,6 @@ from config import Config as conf
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
-TRAIN_FILE = "data/Training_Shuffled_Dataset.txt"
-VALIDATION_FILE = "data/Validation_Shuffled_Dataset.txt"
-WORD2VEC = "word2vec/wordembeddings_200.word2vec"
-
-EMBEDDING_SIZE = 200
-MINIMAL_WORD_FREQUENCY = 1
-
-
 def load_sentences(train_path, validation_path=None):
     sentences = []
 
@@ -30,7 +22,7 @@ def load_sentences(train_path, validation_path=None):
             sentences.append(sentence)
 
     if validation_path is not None:
-        f = open(VALIDATION_FILE, 'r')
+        f = open(validation_path, 'r')
         for line in f:
             conversation = line.strip().split('\t')
             for i in range(3):
@@ -118,6 +110,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-

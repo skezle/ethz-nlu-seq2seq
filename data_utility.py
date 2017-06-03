@@ -2,9 +2,11 @@ import pickle
 import os.path
 import operator
 import cornell_loading
-from numpy import array, transpose
+import numpy as np
 from math import ceil
 from config import Config as conf
+from random import shuffle
+from shutil import copyfile
 
 START_TOKEN = "<bos>"
 END_TOKEN = "<eos>"
@@ -24,8 +26,14 @@ I2W_FILEPATH = 'pickled_vars/index_2_index.p'
 ENCODER_INPUT_FILEPATH = 'pickled_vars/encoder_inputs.p'
 DECODER_INPUT_FILEPATH = 'pickled_vars/decoder_inputs.p'
 ###
-# Creates an output file by transforming the original triples file to a tuple file
+# Creates an output file by transforming the original triples file to a tuples file
+# preserving the order of the dialogs. e.g. for a dialog consisting of sent1 -- sent2 -- sent3
+# the generated tuple "sent2 -- sent3" will directly follow "sent1 -- sent2"
+#
+# If output_filepath is None, then the output tuples will not be written to disk,
+# but returned
 ###
+
 def triples_to_tuples(input_filepath, output_filepath):
     print("Converting triples from {} to tuples..".format(input_filepath))
     f = open(input_filepath, 'r')
@@ -38,7 +46,7 @@ def triples_to_tuples(input_filepath, output_filepath):
 
     f.close()
     f1.close()
-    if input_filepath == TRAINING_FILEPATH:
+    if input_filepath == TRAINING_FILEPATH and conf.use_CORNELL_for_training:
         merge(output_filepath, conf.CORNELL_TUPLES_PATH, conf.both_datasets_tuples_filepath)
 
 
@@ -72,7 +80,6 @@ def merge(base_dataset_tuples_filepath, cornell_tuples_filepath, output_filepath
         f1.close()
         print("\tTotal number of dumped lines: {}".format(numlines))
 
-
 ###
 # Counts unique_tokens. No shit Sherlock...
 ###
@@ -87,6 +94,12 @@ def count_unique_tokens(filename):
     f.close()
     return len(s)
 
+###
+# Gets the vocabulary dictionary and returns it
+# This fails if the dictionary do not exist yet.
+###
+def get_vocabulary():
+    return pickle.load(open(VOCABULARY_FILEPATH, 'rb'))
 
 ###
 # Gets or creates a vocabulary based on vocabulary size
@@ -94,7 +107,7 @@ def count_unique_tokens(filename):
 def get_or_create_vocabulary():
     print("Getting vocabulary..")
     try:
-        vocabulary = pickle.load(open(VOCABULARY_FILEPATH, 'rb'))
+        vocabulary = get_vocabulary()
     except:
         print("Building vocabulary..")
         vocabulary = {}
@@ -125,15 +138,20 @@ def get_or_create_vocabulary():
         print("Vocabulary pickled!")
     return vocabulary
 
+###
+# Gets word_2_index and index_2_word dictionaries and returns them
+# This fails if the dictionaries do not exist yet.
+###
+def get_w2i_i2w_dicts():
+        return pickle.load(open(W2I_FILEPATH, 'rb')), pickle.load(open(I2W_FILEPATH, 'rb'))
 
 ###
-# Creates word_2_index and index_2_word dictionaries
+# Creates word_2_index and index_2_word dictionaries and returns them
 ###
 def get_or_create_dicts_from_train_data():
     print("Getting word2index and index2word..")
     try:
-        word_2_index = pickle.load(open(W2I_FILEPATH, 'rb'))
-        index_2_word = pickle.load(open(I2W_FILEPATH, 'rb'))
+        return get_w2i_i2w_dicts()
     except:
         print("Building word2index and index2word")
         filename = TRAINING_TUPLES_FILEPATH
@@ -166,16 +184,43 @@ def get_or_create_dicts_from_train_data():
     return word_2_index, index_2_word
 
 
+##
+# Applies the word-2-index conversion to a corpus of tuples.
+# 
+# sentenceStringList:   List of interaction strings. Each interaction consists of two
+#                       sentences delimited by '\t'.
+# vocabulary:           The vocabulary used to create the w2i dictionary
+# w2i_dict:             A dictionary having words as keys and the corresponding
+#                       index as a value.
+##
+def apply_w2i_to_corpus_tuples(interactionStringList, vocabulary, w2i_dict):
+
+        def apply_w2i_to_word(word):
+            if word in vocabulary:
+                return w2i_dict[word]
+            else:
+                return w2i_dict[UNK_TOKEN]
+
+        def apply_w2i_to_sentence(sentence_string):
+            return list(map(apply_w2i_to_word, sentence_string.split()))
+
+
+        tuples = map(lambda line: line.strip().split('\t'), interactionStringList)
+        input_sentences, answer_sentences = zip(*tuples)
+        encoder_inputs = list(map(apply_w2i_to_sentence, input_sentences))
+        decoder_inputs = list(map(apply_w2i_to_sentence, answer_sentences))
+
+        return encoder_inputs, decoder_inputs
+
 ###
 # Returns data by type (train, eval), together with the word_2_index and index_2_word dicts
 ###
 def get_data_by_type(t):
-
-    if t=='train':
+    if t == 'train':
         filename = TRAINING_TUPLES_FILEPATH
         if conf.use_CORNELL_for_training:
             filename = conf.both_datasets_tuples_filepath
-    elif t=='eval':
+    elif t == 'eval':
         filename = VALIDATION_TUPLES_FILEPATH
         if not os.path.isfile(filename):
             triples_to_tuples(VALIDATION_FILEPATH, filename)
@@ -192,56 +237,38 @@ def get_data_by_type(t):
         decoder_inputs = pickle.load(open(DECODER_INPUT_FILEPATH, 'rb'))
     except:
         print("Building encoder and decoder inputs..")
-        encoder_inputs = []
-        decoder_inputs = []
 
-        f = open(filename, 'r')
-        for line in f:
-            conversation = line.strip().split('\t')
+        with open(filename, 'r') as tuples_input:
+            lines = tuples_input.readlines()
+            encoder_inputs, decoder_inputs = apply_w2i_to_corpus_tuples(lines, vocabulary, word_2_index)
 
-            encoder_input = []
-            for word in conversation[0].split():
-                if word in vocabulary:
-                    encoder_input.append(word_2_index[word])
-                else:
-                    encoder_input.append(word_2_index[UNK_TOKEN])
-            # encoder_input.append(word_2_index[END_TOKEN])  # DO WE NEED EOS?
-            encoder_inputs.append(encoder_input)
-
-            decoder_input = []
-            #print(line)
-            for word in conversation[1].split():
-                if word in vocabulary:
-                    #print(conversation[1])
-                    decoder_input.append(word_2_index[word])
-                else:
-                    decoder_input.append(word_2_index[UNK_TOKEN])
-            # decoder_input.append(word_2_index[END_TOKEN])
-            decoder_inputs.append(decoder_input)
-
-        pickle.dump(encoder_inputs, open(ENCODER_INPUT_FILEPATH, 'wb'))
-        pickle.dump(decoder_inputs, open(DECODER_INPUT_FILEPATH, 'wb'))
-        print("encoder and decoder inputs pickled!")
+        # pickle.dump(encoder_inputs, open(ENCODER_INPUT_FILEPATH, 'wb'))
+        # pickle.dump(decoder_inputs, open(DECODER_INPUT_FILEPATH, 'wb'))
+        # print("encoder and decoder inputs pickled!")
 
     return encoder_inputs, decoder_inputs, word_2_index, index_2_word
-
 
 ###
 # Custom function for bucketing
 ###
-def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True):
+def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True, shuffle_batches=True, filter_long_sent=True):
 
     assert len(enc_inputs) == len(dec_inputs)
-
+    enc_dec = list(zip(enc_inputs, dec_inputs))     
+    if filter_long_sent:
+        enc_dec = list(filter(lambda tup: len(tup[0]) < conf.input_sentence_max_length or len(tup[1]) < conf.input_sentence_max_length, enc_dec))
+    
     if sort_data:
         enc_dec = zip(enc_inputs, dec_inputs)
-        sorted_enc_dec_pairs = sorted(enc_dec, key=lambda inputs: (len(inputs[0]), len(inputs[1])))
+        enc_dec = sorted(enc_dec, key=lambda inputs: (len(inputs[0]), len(inputs[1])))
 
-        enc_inputs, dec_inputs = zip(*sorted_enc_dec_pairs)
+    enc_inputs, dec_inputs = zip(*enc_dec)
+    assert len(enc_inputs) == len(dec_inputs)
     # else we keep the data unsorted
     
     num_batches = ceil(len(enc_inputs) / batch_size)    
 
+    all_batches = []
     for batch_num in range(num_batches):
         encoder_sequence_lengths = [len(sentence) 
                                     for sentence
@@ -250,7 +277,7 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
         encoder_batch = [sentence + ([PAD_TOKEN_INDEX] * (max_len_enc - encoder_sequence_lengths[i]))
                          for i, sentence
                          in enumerate(enc_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
-        encoder_batch = array(encoder_batch).transpose()
+        encoder_batch = np.array(encoder_batch).transpose()
         decoder_sequence_lengths = [len(sentence) 
                                     for sentence
                                     in dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size]]
@@ -258,6 +285,63 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
         decoder_batch = [sentence + ([PAD_TOKEN_INDEX] * (max_len_dec - decoder_sequence_lengths[i]))
                          for i, sentence
                          in enumerate(dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
-        decoder_batch = array(decoder_batch).transpose()
-        yield encoder_batch, encoder_sequence_lengths, decoder_batch, decoder_sequence_lengths
 
+        decoder_batch = np.array(decoder_batch).transpose()
+        all_batches.append((encoder_batch, encoder_sequence_lengths, decoder_batch, decoder_sequence_lengths))
+
+    if shuffle_batches:
+        shuffle(all_batches)
+    for i in range(num_batches):
+        yield all_batches[i]
+
+
+def copy_config(to):
+    copyfile("./config.py", os.path.join(to, "config.py"))
+
+
+def truncate_sentence(sent):
+    idxArr = np.where(sent == END_TOKEN_INDEX)[0]
+    if idxArr.size == 0:
+        return sent
+    else:
+        return sent[:idxArr[0]+1]
+
+
+def truncate_after_eos(sentence_list):
+    return list(map(lambda sent: truncate_sentence(sent), sentence_list))
+
+
+
+
+
+
+
+
+
+# encoder_inputs = []
+#         decoder_inputs = []
+#
+#         f = open(filename, 'r')
+#         for line in f:
+#             conversation = line.strip().split('\t')
+#
+#             encoder_input = []
+#             for word in conversation[0].split():
+#                 if word in vocabulary:
+#                     encoder_input.append(word_2_index[word])
+#                 else:
+#                     encoder_input.append(word_2_index[UNK_TOKEN])
+#             # encoder_input.append(word_2_index[END_TOKEN])  # DO WE NEED EOS?
+#             encoder_inputs.append(encoder_input)
+#
+#             decoder_input = []
+#             #print(line)
+#             for word in conversation[1].split():
+#                 if word in vocabulary:
+#                     #print(conversation[1])
+#                     decoder_input.append(word_2_index[word])
+#                 else:
+#                     decoder_input.append(word_2_index[UNK_TOKEN])
+#             # decoder_input.append(word_2_index[END_TOKEN])
+#             decoder_inputs.append(decoder_input)
+# =======

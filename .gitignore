@@ -1,7 +1,9 @@
-# data files
+# data files and other files produced by the code
 data/
 *.tar.gz
 pickled_vars/
+*.word2vec
+*.out
 
 # Logs and checkpoints directory
 logs/

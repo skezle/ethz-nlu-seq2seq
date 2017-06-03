@@ -20,9 +20,13 @@ class BaselineModel():
     PAD = PAD_TOKEN_INDEX
     def __init__(self, encoder_cell, decoder_cell, vocab_size, embedding_size,
                  bidirectional=True,
-                 attention=False):
+                 attention=False,
+                 dropout=False,
+                 num_layers=1):
         self.bidirectional = bidirectional
         self.attention = attention ## used when initialising the decoder
+        self.dropout = dropout
+        self.num_layers = num_layers
 
         self.vocab_size = vocab_size
         self.embedding_size = embedding_size
@@ -40,7 +44,11 @@ class BaselineModel():
     def _make_graph(self):
         tf.reset_default_graph()
 
+        
         self._init_placeholders()
+
+        self._init_dropout()
+        self._init_deep()
 
         self._init_decoder_train_connectors()
         self._init_embeddings()
@@ -55,6 +63,16 @@ class BaselineModel():
         self._init_optimizer()
 
         self._init_summary()
+
+    def _init_dropout(self):
+        if self.dropout:
+            self.encoder_cell = tf.contrib.rnn.DropoutWrapper(self.encoder_cell, input_keep_prob=self.dropout_keep_prob)
+            self.decoder_cell = tf.contrib.rnn.DropoutWrapper(self.decoder_cell, input_keep_prob=self.dropout_keep_prob)
+
+    def _init_deep(self):
+        if self.num_layers != 1:
+            self.encoder_cell = tf.contrib.rnn.MultiRNNCell([self.encoder_cell] * self.num_layers)
+            self.decoder_cell = tf.contrib.rnn.MultiRNNCell([self.decoder_cell] * self.num_layers)
 
     def _init_placeholders(self):
         """ Everything is time-major """
@@ -81,6 +99,8 @@ class BaselineModel():
             name='decoder_targets_length',
         )
 
+        self.dropout_keep_prob = tf.placeholder(tf.float32)
+
     def _init_decoder_train_connectors(self):
         """
         During training, `decoder_targets`
@@ -99,7 +119,7 @@ class BaselineModel():
 
             decoder_train_targets = tf.concat([self.decoder_targets, PAD_SLICE], axis=0)
             decoder_train_targets_seq_len, _ = tf.unstack(tf.shape(decoder_train_targets))
-            
+
             eos_multiplication_mask = tf.one_hot(self.decoder_train_length - 1,
                                                         decoder_train_targets_seq_len,
                                                         on_value=0, off_value=1,
@@ -116,13 +136,12 @@ class BaselineModel():
                                             tf.multiply(decoder_train_targets,
                                             eos_multiplication_mask),
                                             eos_addition_mask)
-            
+
             self.decoder_train_targets = decoder_train_targets
 
-            self.loss_weights = tf.ones([
-                batch_size,
-                tf.reduce_max(self.decoder_train_length)
-            ], dtype=tf.float32, name="loss_weights")
+            self.loss_weights = tf.sequence_mask(self.decoder_train_length, 
+                                                 tf.reduce_max(self.decoder_train_length),
+                                                 dtype=tf.float32)
 
     def _init_embeddings(self):
         with tf.variable_scope("embedding") as scope:
@@ -184,7 +203,12 @@ class BaselineModel():
     def _init_decoder(self):
         with tf.variable_scope("Decoder") as scope:
             def output_fn(outputs):
-                return tf.contrib.layers.linear(outputs, self.vocab_size, scope=scope)
+                ##return tf.contrib.layers.linear(outputs, self.vocab_size, scope=scope)
+                return tf.contrib.layers.fully_connected(inputs=outputs,
+                                                         num_outputs=self.vocab_size,
+                                                         activation_fn=None, ## linear
+                                                         reuse=True,
+                                                         scope=scope)
 
             if not self.attention:
                 decoder_fn_train = seq2seq.simple_decoder_fn_train(encoder_state=self.encoder_state)
@@ -198,19 +222,27 @@ class BaselineModel():
                     num_decoder_symbols=self.vocab_size,
                 )
             else:
-
                 # attention_states: size [batch_size, max_time, num_units]
-                attention_states = tf.transpose(self.encoder_outputs, [1, 0, 2])
+                attention_states = tf.transpose(self.encoder_outputs, [1, 0, 2]) ## permutation of dimentions is [0,1,2] to [1,0,2]
 
+                # Prepare keys/values/functions for attention.
+                # attention_option: how to compute attention, either "luong" or "bahdanau".
+                # "bahdanau": additive (Bahdanau et al., ICLR'2015)
+                # "luong": multiplicative (Luong et al., EMNLP'2015)
+                # attention_keys: linear combination of encoder outputs and decoder hidden units
+                # attention_values: encoder outputs
+                # attention_score_fn: function which calculates the score between key and target states
+                # attention_construct_fn: function constructs attention vector
                 (attention_keys,
                 attention_values,
                 attention_score_fn,
                 attention_construct_fn) = seq2seq.prepare_attention(
-                    attention_states=attention_states,
+                    attention_states=attention_states, ## encoder outputs for attention to 'attend to'
                     attention_option="bahdanau",
                     num_units=self.decoder_hidden_units,
                 )
 
+                ## attention model training function
                 decoder_fn_train = seq2seq.attention_decoder_fn_train(
                     encoder_state=self.encoder_state, ## output of the encoder
                     attention_keys=attention_keys,
@@ -220,6 +252,7 @@ class BaselineModel():
                     name='attention_decoder'
                 )
 
+                ## attention model for inference
                 decoder_fn_inference = seq2seq.attention_decoder_fn_inference(
                     output_fn=output_fn,
                     encoder_state=self.encoder_state, ## output of the encoder
@@ -234,6 +267,7 @@ class BaselineModel():
                     num_decoder_symbols=self.vocab_size,
                 )
 
+            ## Training
             (self.decoder_outputs_train,
              self.decoder_state_train,
              self.decoder_context_state_train) = (
@@ -248,10 +282,13 @@ class BaselineModel():
             )
 
             self.decoder_logits_train = output_fn(self.decoder_outputs_train)
+            self.decoder_softmax_train = tf.nn.softmax(self.decoder_logits_train)
+
             self.decoder_prediction_train = tf.argmax(self.decoder_logits_train, axis=-1, name='decoder_prediction_train')
 
             scope.reuse_variables()
 
+            ## Prediction
             (self.decoder_logits_inference,
              self.decoder_state_inference,
              self.decoder_context_state_inference) = (
@@ -284,10 +321,12 @@ class BaselineModel():
             self.encoder_inputs_length: input_seq_len,
             self.decoder_targets: target_seq,
             self.decoder_targets_length: target_seq_len,
+            self.dropout_keep_prob: conf.dropout_keep_prob,
         }
 
     def make_inference_inputs(self, input_seq, input_seq_len):
         return {
             self.encoder_inputs: input_seq,
             self.encoder_inputs_length: input_seq_len,
+            self.dropout_keep_prob: 1,
         }
