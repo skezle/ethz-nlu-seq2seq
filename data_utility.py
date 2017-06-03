@@ -27,6 +27,7 @@ DECODER_INPUT_FILEPATH = 'pickled_vars/decoder_inputs.p'
 # Creates an output file by transforming the original triples file to a tuple file
 ###
 def triples_to_tuples(input_filepath, output_filepath):
+    print("Converting triples from {} to tuples..".format(input_filepath))
     f = open(input_filepath, 'r')
     f1 = open(output_filepath, 'w')
 
@@ -37,18 +38,22 @@ def triples_to_tuples(input_filepath, output_filepath):
 
     f.close()
     f1.close()
-    merge(output_filepath, conf.CORNELL_TUPLES_PATH, conf.both_datasets_tuples_filepath)
+    if input_filepath == TRAINING_FILEPATH:
+        merge(output_filepath, conf.CORNELL_TUPLES_PATH, conf.both_datasets_tuples_filepath)
 
 
 def merge(base_dataset_tuples_filepath, cornell_tuples_filepath, output_filepath):
     if conf.use_CORNELL_for_training:
+        numlines = 0
         f = open(base_dataset_tuples_filepath, 'r')
         f1 = open(output_filepath, 'w')
-
+        print("Merging base dataset with Cornell: loading base dataset..")
         for line in f:
-            couples = line.strip().split('\t')
-            f1.write("{}\t{}\n".format(couples[0], couples[1]))
+            f1.write(line)
+            numlines = numlines + 1
         f.close()
+        print("\tNumber of tuples loaded from base dataset: {}".format(numlines))
+        print("Merging base dataset with Cornell: loading Cornell dataset..")
         if not os.path.isfile(cornell_tuples_filepath):
             cornell_loading.create_Cornell_tuples(conf.CORNELL_lines_path, conf.CORNELL_conversations_path, conf.CORNELL_TUPLES_PATH)
         f2 = open(cornell_tuples_filepath, 'r')
@@ -59,8 +64,13 @@ def merge(base_dataset_tuples_filepath, cornell_tuples_filepath, output_filepath
                 while len(couples[k]) <= 0 and k <= len(couples):
                     k = k + 1
                 f1.write("{}\t{}\n".format(couples[0], couples[k]))
+                numlines = numlines + 1
+            else:
+                f1.write(line)
+                numlines = numlines + 1
         f2.close()
         f1.close()
+        print("\tTotal number of dumped lines: {}".format(numlines))
 
 
 ###
@@ -100,6 +110,7 @@ def get_or_create_vocabulary():
                 vocabulary[word] = vocabulary.get(word, 0) + 1
 
         sorted_vocab = sorted(vocabulary.items(), key=operator.itemgetter(1), reverse=True)
+        print("Total length of vocabulary: {}".format(len(sorted_vocab)))
 
         sorted_vocab = sorted_vocab[:conf.vocabulary_size-4]
         vocabulary = dict(sorted_vocab)
@@ -111,6 +122,7 @@ def get_or_create_vocabulary():
 
         pickle.dump(vocabulary, open(VOCABULARY_FILEPATH, 'wb'))
         train_file.close()
+        print("Vocabulary pickled!")
     return vocabulary
 
 
@@ -149,6 +161,7 @@ def get_or_create_dicts_from_train_data():
 
         pickle.dump(word_2_index, open(W2I_FILEPATH, 'wb'))
         pickle.dump(index_2_word, open(I2W_FILEPATH, 'wb'))
+        print("word2index and index2word pickled!")
 
     return word_2_index, index_2_word
 
@@ -196,7 +209,7 @@ def get_data_by_type(t):
             encoder_inputs.append(encoder_input)
 
             decoder_input = []
-            print(line)
+            #print(line)
             for word in conversation[1].split():
                 if word in vocabulary:
                     #print(conversation[1])
@@ -208,6 +221,7 @@ def get_data_by_type(t):
 
         pickle.dump(encoder_inputs, open(ENCODER_INPUT_FILEPATH, 'wb'))
         pickle.dump(decoder_inputs, open(DECODER_INPUT_FILEPATH, 'wb'))
+        print("encoder and decoder inputs pickled!")
 
     return encoder_inputs, decoder_inputs, word_2_index, index_2_word
 

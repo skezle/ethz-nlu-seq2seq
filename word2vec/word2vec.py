@@ -41,14 +41,37 @@ def load_sentences(train_path, validation_path=None):
 
     return sentences
 
+def load_sentences_from_tuples(train_path_tuples, validation_path=None):
+    sentences = []
+
+    f = open(train_path_tuples, 'r')
+    for line in f:
+        conversation = line.strip().split('\t')
+        sentence = conversation[0].split()              # only first sentence, since they repeat!
+        sentences.append(sentence)
+
+    if validation_path is not None:
+        f = open(VALIDATION_FILE, 'r')
+        for line in f:
+            conversation = line.strip().split('\t')
+            for i in range(3):
+                sentence = conversation[i].split()
+                sentences.append(sentence)
+
+    print("{} sentences used to build word2vec model!".format(len(sentences)))
+    return sentences
 
 def train_embeddings(save_to_path, embedding_size, minimal_frequency, train_tuples_path, validation_path=None, num_workers=4):
     print("Training word2vec model with following parameters: ")
-    print("\t dataset: " + train_tuples_path + ", validation set used: " + validation_path)
+    print("\t base dataset: {}, validation set used: {}".format(train_tuples_path, validation_path))
     print("\t Cornell dataset used: " + str(conf.use_CORNELL_for_word2vec))
     print("\t word embeddings size: " + str(embedding_size))
     print("\t word embeddings saved on path: {}".format(save_to_path))
-    model = gensim.models.Word2Vec(load_sentences(train_tuples_path, validation_path),
+    trainingset = train_tuples_path
+    if conf.use_CORNELL_for_word2vec:
+        trainingset = conf.both_datasets_tuples_filepath
+
+    model = gensim.models.Word2Vec(load_sentences_from_tuples(trainingset, None),
                                    size=embedding_size,
                                    min_count=minimal_frequency,
                                    workers=num_workers)

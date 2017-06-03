@@ -9,7 +9,7 @@ import re
 #                   'L540476', 'L540816', 'L619064', 'L50129', 'L78957']
 
 def load_conversations(filename, bullshit_lines, script, characters_capslock, characters_firstupper):
-    print("Loading dialogue turns from {} and applyting regular expressions..".format(filename))
+    print("\t\tCORNELL: Loading dialogue turns from {} and applyting regular expressions..".format(filename))
 
     matching_quotationmarks = re.compile('\"(.*)\"')
     single_quotationmarks = re.compile('\"(.*)')
@@ -161,7 +161,7 @@ def load_conversations(filename, bullshit_lines, script, characters_capslock, ch
 
 
 def load_lines(filename):
-    print("Loading script lines from: {}".format(filename))
+    print("\t\tCORNELL: Loading script lines from: {}".format(filename))
 
     f = open(filename, 'r', encoding="ISO-8859-1")
     script = {}
@@ -185,15 +185,15 @@ def load_lines(filename):
             else:
                 discarded_characters.add(script_line[3].lower().strip())
 
-    print("Number of empty lines: {}".format(len(bullshit_lines)))
-    print("Number of unique characters: {}".format(len(characters_capslock)))
-    print("Number of one-letter names: {}".format(len(discarded_characters)))
+    print("\t\tCORNELL: Number of empty lines: {}".format(len(bullshit_lines)))
+    print("\t\tCORNELL: Number of unique characters: {}".format(len(characters_capslock)))
+    print("\t\tCORNELl: Number of one-letter names: {}".format(len(discarded_characters)))
     f.close()
     return script, bullshit_lines, characters_capslock, characters_firstupper, discarded_characters
 
 
 def dump_Tuples(filename, conversations, convID):
-    print("Dumping cleaned tuples on path {}".format(filename))
+    print("\t\tCORNEL: Dumping cleaned tuples on path {}".format(filename))
     f = open(filename, 'w')
 
     for i in range(convID):

@@ -66,8 +66,10 @@ def mainFunc(argv):
                               bidirectional=False,
                               attention=False)
     assert model != None
+    print("=== GETTING DATA BY TYPE = TRAIN ===")
     enc_inputs, dec_inputs, word_2_index, index_2_word = get_data_by_type('train')
     # Materialize validation data
+    print("=== GETTING DATA BY TYPE = EVAL ===")
     validation_enc_inputs, validation_dec_inputs, _, _ = get_data_by_type('eval')
     validation_data = list(bucket_by_sequence_length(validation_enc_inputs, validation_dec_inputs, conf.batch_size))
     
@@ -99,7 +101,7 @@ def mainFunc(argv):
                                           embedding_size=conf.word_embedding_size,
                                           minimal_frequency=conf.word2vec_min_word_freq,
                                           train_tuples_path=train_sentences,
-                                          validation_path=VALIDATION_FILEPATH,
+                                          validation_path=None,
                                           num_workers=conf.word2vec_workers_count)
             print("Loading word2vec embeddings")
             load_embedding(sess,
