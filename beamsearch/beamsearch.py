@@ -18,21 +18,20 @@ class BeamsearchModel():
     BOS = START_TOKEN_INDEX
     EOS = END_TOKEN_INDEX
     PAD = PAD_TOKEN_INDEX
-    def __init__(self, encoder_cell, decoder_cell, vocab_size, embedding_size,
+    def __init__(self, vocab_size, embedding_size,
                  bidirectional=True,
                  attention=False,
                  dropout=False,
                  num_layers=1):
         self.bidirectional = bidirectional
+        self.encoder_scope_name = "Encoder" if bidirectional else "BidirectionalEncoder"
+        self.decoder_scope_name = "Decoder"
         self.attention = attention ## used when initialising the decoder
         self.dropout = dropout
         self.num_layers = num_layers
 
         self.vocab_size = vocab_size
         self.embedding_size = embedding_size
-
-        self.encoder_cell = encoder_cell
-        self.decoder_cell = decoder_cell
 
         self._make_graph()
 
@@ -47,8 +46,7 @@ class BeamsearchModel():
         
         self._init_placeholders()
 
-        self._init_dropout()
-        self._init_deep()
+        self._init_cells()
 
         self._init_decoder_train_connectors()
         self._init_embeddings()
@@ -64,15 +62,22 @@ class BeamsearchModel():
 
         self._init_summary()
 
-    def _init_dropout(self):
-        if self.dropout:
-            self.encoder_cell = tf.contrib.rnn.DropoutWrapper(self.encoder_cell, input_keep_prob=self.dropout_keep_prob)
-            self.decoder_cell = tf.contrib.rnn.DropoutWrapper(self.decoder_cell, input_keep_prob=self.dropout_keep_prob)
+    def _init_cells(self):
+        with tf.variable_scope(self.encoder_scope_name) as scope:
+            cell = tf.contrib.rnn.LSTMCell(conf.encoder_cell_size)
+            if self.dropout:
+                cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=self.dropout_keep_prob)
+            if self.num_layers != 1:
+                tf.contrib.rnn.MultiRNNCell([cell for _ in xrange(self.num_layers)]) # The cells in the different layers share the same weights
+            self.encoder_cell = cell
 
-    def _init_deep(self):
-        if self.num_layers != 1:
-            self.encoder_cell = tf.contrib.rnn.MultiRNNCell([self.encoder_cell] * self.num_layers)
-            self.decoder_cell = tf.contrib.rnn.MultiRNNCell([self.decoder_cell] * self.num_layers)
+        with tf.variable_scope(self.decoder_scope_name) as scope:
+            cell = tf.contrib.rnn.LSTMCell(conf.decoder_cell_size)
+            if self.dropout:
+                cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=self.dropout_keep_prob)
+            if self.num_layers != 1:
+                tf.contrib.rnn.MultiRNNCell([cell for _ in xrange(self.num_layers)]) # The cells in the different layers share the same weights
+            self.decoder_cell = cell
 
     def _init_placeholders(self):
         """ Everything is time-major """
@@ -109,10 +114,10 @@ class BeamsearchModel():
         Here we do a bit of plumbing to set this up.
         """
         with tf.name_scope('DecoderTrainFeeds'):
-            sequence_size, batch_size = tf.unstack(tf.shape(self.decoder_targets))
-            self.batch_size = batch_size
-            BOS_SLICE = tf.ones([1, batch_size], dtype=tf.int32) * self.BOS
-            PAD_SLICE = tf.ones([1, batch_size], dtype=tf.int32) * self.PAD
+            sequence_size, self.batch_size = tf.unstack(tf.shape(self.decoder_targets))
+
+            BOS_SLICE = tf.ones([1, self.batch_size], dtype=tf.int32) * self.BOS
+            PAD_SLICE = tf.ones([1, self.batch_size], dtype=tf.int32) * self.PAD
 
             self.decoder_train_inputs = tf.concat([BOS_SLICE, self.decoder_targets], axis=0)
             self.decoder_train_length = self.decoder_targets_length + 1
@@ -163,7 +168,7 @@ class BeamsearchModel():
                 self.embedding_matrix, self.decoder_train_inputs)
 
     def _init_simple_encoder(self):
-        with tf.variable_scope("Encoder") as scope:
+        with tf.variable_scope(self.encoder_scope_name) as scope:
             (self.encoder_outputs, self.encoder_state) = (
                 tf.nn.dynamic_rnn(cell=self.encoder_cell,
                                   inputs=self.encoder_inputs_embedded,
@@ -173,7 +178,7 @@ class BeamsearchModel():
                 )
 
     def _init_bidirectional_encoder(self):
-        with tf.variable_scope("BidirectionalEncoder") as scope:
+        with tf.variable_scope(self.encoder_scope_name) as scope:
 
             ((encoder_fw_outputs,
               encoder_bw_outputs),
@@ -201,106 +206,87 @@ class BeamsearchModel():
                 self.encoder_state = tf.concat((encoder_fw_state, encoder_bw_state), 1, name='bidirectional_concat')
 
     def _init_decoder(self):
-        with tf.variable_scope("Decoder") as scope:
+        with tf.variable_scope(self.decoder_scope_name) as scope:
             def output_fn(outputs):
-                ##return tf.contrib.layers.linear(outputs, self.vocab_size, scope=scope)
                 return tf.contrib.layers.fully_connected(inputs=outputs,
                                                          num_outputs=self.vocab_size,
                                                          activation_fn=None, ## linear
-                                                         reuse=True,
                                                          scope=scope)
-
             if not self.attention:
-                decoder_fn_train = seq2seq.simple_decoder_fn_train(encoder_state=self.encoder_state)
-            else:
-                # attention_states: size [batch_size, max_time, num_units]
-                attention_states = tf.transpose(self.encoder_outputs, [1, 0, 2]) ## permutation of dimentions is [0,1,2] to [1,0,2]
+                trainingHelper = tf.contrib.seq2seq.TrainingHelper(
+                            inputs=self.decoder_train_inputs_embedded,
+                            sequence_length=self.decoder_train_length,
+                            time_major=True)
 
-                # Prepare keys/values/functions for attention.
-                # attention_option: how to compute attention, either "luong" or "bahdanau".
-                # "bahdanau": additive (Bahdanau et al., ICLR'2015)
-                # "luong": multiplicative (Luong et al., EMNLP'2015)
-                # attention_keys: linear combination of encoder outputs and decoder hidden units
-                # attention_values: encoder outputs
-                # attention_score_fn: function which calculates the score between key and target states
-                # attention_construct_fn: function constructs attention vector
-                (attention_keys,
-                attention_values,
-                attention_score_fn,
-                attention_construct_fn) = seq2seq.prepare_attention(
-                    attention_states=attention_states, ## encoder outputs for attention to 'attend to'
-                    attention_option="bahdanau",
-                    num_units=self.decoder_hidden_units,
-                )
+                self.decoder_train = tf.contrib.seq2seq.BasicDecoder(
+                    cell=self.decoder_cell,
+                    helper=trainingHelper,
+                    initial_state=self.encoder_state,
+                    output_layer=None)
 
-                ## attention model training function
-                decoder_fn_train = seq2seq.attention_decoder_fn_train(
-                    encoder_state=self.encoder_state, ## output of the encoder
-                    attention_keys=attention_keys,
-                    attention_values=attention_values,
-                    attention_score_fn=attention_score_fn,
-                    attention_construct_fn=attention_construct_fn,
-                    name='attention_decoder'
-                )
+                
 
-                ## attention model for inference
-                decoder_fn_inference = seq2seq.attention_decoder_fn_inference(
-                    output_fn=output_fn,
-                    encoder_state=self.encoder_state, ## output of the encoder
-                    attention_keys=attention_keys,
-                    attention_values=attention_values,
-                    attention_score_fn=attention_score_fn,
-                    attention_construct_fn=attention_construct_fn,
-                    embeddings=self.embedding_matrix,
-                    start_of_sequence_id=self.BOS,
-                    end_of_sequence_id=self.EOS,
-                    maximum_length=conf.max_decoder_inference_length,
-                    num_decoder_symbols=self.vocab_size,
-                )
+                inferenceHelper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
+                    embedding=self.embedding_matrix,
+                    start_tokens=tf.tile([START_TOKEN_INDEX], [self.batch_size]),
+                    end_token=END_TOKEN_INDEX)
+
+                self.decoder_inference = tf.contrib.seq2seq.BeamSearchDecoder(
+                    cell=self.decoder_cell,
+                    embedding=self.embedding_matrix,
+                    start_tokens=tf.tile([START_TOKEN_INDEX], [self.batch_size]),
+                    end_token=END_TOKEN_INDEX,
+                    initial_state=self.encoder_state,
+                    beam_width=conf.beam_width,
+                    output_layer=None,
+                    length_penalty_weight=conf.beam_length_penalty_weight)
+
+            #else:
+                # TODO: Redo for tensorflow r1.2
+                # see https://www.tensorflow.org/versions/r1.2/api_guides/python/contrib.seq2seq
 
             ## Training
-            (self.decoder_outputs_train,
-             self.decoder_state_train,
-             self.decoder_context_state_train) = (
-                seq2seq.dynamic_rnn_decoder(
-                    cell=self.decoder_cell,
-                    decoder_fn=decoder_fn_train,
-                    inputs=self.decoder_train_inputs_embedded,
-                    sequence_length=self.decoder_train_length,
-                    time_major=True,
-                    scope=scope,
-                )
-            )
+            decoder_train_outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
+                decoder=self.decoder_train,
+                output_time_major=True,
+                impute_finished=True,
+                maximum_iterations=conf.input_sentence_max_length,
+                scope=scope)    
 
-            self.decoder_logits_train = output_fn(self.decoder_outputs_train)
-            self.decoder_softmax_train = tf.nn.softmax(self.decoder_logits_train)
+            self.decoder_logits_train = output_fn(decoder_train_outputs.rnn_output)
+            self.decoder_softmax_train = tf.nn.softmax(decoder_train_outputs.rnn_output)
 
             self.decoder_prediction_train = tf.argmax(self.decoder_logits_train, axis=-1, name='decoder_prediction_train')
 
             scope.reuse_variables()
 
-            ## Prediction
-            self.beam_decoder = tf.contrib.seq2seq.BeamSearchDecoder(
-                cell=self.decoder_cell,
-                embedding=self.embedding_matrix,
-                start_tokens=[self.BOS] * self.batch_size,
-                end_token=self.EOS,
-                initial_state=self.encoder_state,
-                beam_width=conf.beam_width,
-                output_layer=output_fn,
-                length_penalty_weight=conf.beam_length_penalty_weight)
-
-            self.decoder_prediction_inference = tf.contrib.seq2seq.dynamic_decode(
-                decoder=self.beam_decoder,
+            ## Validation
+            decoder_validation_outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
+                decoder=self.decoder_train,
                 output_time_major=True,
                 impute_finished=True,
-                maximum_iterations=conf.max_decoder_inference_length,
-                scope=scope)
+                maximum_iterations=None, # 
+                scope=scope)    
+
+            self.decoder_logits_validation = output_fn(decoder_validation_outputs.rnn_output)
+
+            ## Prediction
+            decoder_inference_outputs, _, self.decoder_prediction_lengths = tf.contrib.seq2seq.dynamic_decode(
+               decoder=self.decoder_inference,
+               output_time_major=False,
+               impute_finished=True,
+               maximum_iterations=conf.max_decoder_inference_length,
+               scope=scope)
+
+            self.decoder_prediction_inference = tf.argmax(output_fn(decoder_train_outputs.rnn_output), axis=-1, name='decoder_prediction_inference')
 
     def _init_optimizer(self):
         logits = tf.transpose(self.decoder_logits_train, [1, 0, 2])
+        validation_logits = tf.transpose(self.decoder_logits_validation, [1, 0, 2])
         targets = tf.transpose(self.decoder_train_targets, [1, 0])
         self.loss = seq2seq.sequence_loss(logits=logits, targets=targets,
+                                          weights=self.loss_weights)
+        self.validation_loss = seq2seq.sequence_loss(logits=validation_logits, targets=targets,
                                           weights=self.loss_weights)
         optimizer = tf.train.AdamOptimizer()
         gradients, variables = zip(*optimizer.compute_gradients(self.loss))
@@ -308,8 +294,10 @@ class BeamsearchModel():
         self.train_op = optimizer.apply_gradients(zip(gradients, variables))
 
     def _init_summary(self):
-        tf.summary.scalar("loss", self.loss)
-        self.summary_op = tf.summary.merge_all()
+        loss = tf.summary.scalar("loss", self.loss)
+        vali_loss = tf.summary.scalar("validation_loss", self.validation_loss)
+        self.summary_op = tf.summary.merge([loss])
+        self.validation_summary_op = tf.summary.merge([vali_loss])
 
     def make_train_inputs(self, input_seq, input_seq_len, target_seq, target_seq_len):
         return {
