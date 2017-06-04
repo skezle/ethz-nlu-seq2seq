@@ -219,79 +219,25 @@ class BaselineModel():
                                                          scope=scope)
 
             if not self.attention:
-                helper = tf.contrib.seq2seq.TrainingHelper(
+                trainingHelper = tf.contrib.seq2seq.TrainingHelper(
                             input=self.encoder_inputs,
                             sequence_length=self.encoder_inputs_length,
                             time_major=True)
 
-                self.decoder = tf.contrib.seq2seq.BasicDecoder(
+                self.decoder_train = tf.contrib.seq2seq.BasicDecoder(
                     cell=self.decoder_cell,
-                    helper=helper,
+                    helper=trainingHelper,
                     initial_state=self.encoder_state,
                     output_layer=output_fn)
 
-                decoder_fn_train = seq2seq.simple_decoder_fn_train(encoder_state=self.encoder_state)
-                self.basic_decoder = tf.contrib.seq2seq.BasicDecoder(
-                    cell=self.decoder_cell,
-                    )
-                decoder_fn_inference = seq2seq.simple_decoder_fn_inference(
-                    output_fn=output_fn,
-                    encoder_state=self.encoder_state, ## output of the encoder
-                    embeddings=self.embedding_matrix,
-                    start_of_sequence_id=self.BOS,
-                    end_of_sequence_id=self.EOS,
-                    maximum_length=conf.max_decoder_inference_length,
-                    num_decoder_symbols=self.vocab_size,
-                )
+                
             else:
-                # attention_states: size [batch_size, max_time, num_units]
-                attention_states = tf.transpose(self.encoder_outputs, [1, 0, 2]) ## permutation of dimentions is [0,1,2] to [1,0,2]
-
-                # Prepare keys/values/functions for attention.
-                # attention_option: how to compute attention, either "luong" or "bahdanau".
-                # "bahdanau": additive (Bahdanau et al., ICLR'2015)
-                # "luong": multiplicative (Luong et al., EMNLP'2015)
-                # attention_keys: linear combination of encoder outputs and decoder hidden units
-                # attention_values: encoder outputs
-                # attention_score_fn: function which calculates the score between key and target states
-                # attention_construct_fn: function constructs attention vector
-                (attention_keys,
-                attention_values,
-                attention_score_fn,
-                attention_construct_fn) = seq2seq.prepare_attention(
-                    attention_states=attention_states, ## encoder outputs for attention to 'attend to'
-                    attention_option="bahdanau",
-                    num_units=self.decoder_hidden_units,
-                )
-
-                ## attention model training function
-                decoder_fn_train = seq2seq.attention_decoder_fn_train(
-                    encoder_state=self.encoder_state, ## output of the encoder
-                    attention_keys=attention_keys,
-                    attention_values=attention_values,
-                    attention_score_fn=attention_score_fn,
-                    attention_construct_fn=attention_construct_fn,
-                    name='attention_decoder'
-                )
-
-                ## attention model for inference
-                decoder_fn_inference = seq2seq.attention_decoder_fn_inference(
-                    output_fn=output_fn,
-                    encoder_state=self.encoder_state, ## output of the encoder
-                    attention_keys=attention_keys,
-                    attention_values=attention_values,
-                    attention_score_fn=attention_score_fn,
-                    attention_construct_fn=attention_construct_fn,
-                    embeddings=self.embedding_matrix,
-                    start_of_sequence_id=self.BOS,
-                    end_of_sequence_id=self.EOS,
-                    maximum_length=conf.max_decoder_inference_length,
-                    num_decoder_symbols=self.vocab_size,
-                )
+                # TODO: Redo for tensorflow r1.2
+                # see https://www.tensorflow.org/versions/r1.2/api_guides/python/contrib.seq2seq
 
             ## Training
             self.decoder_logits_train, _ = tf.contrib.seq2seq.dynamic_decode(
-               decoder=self.decoder,
+               decoder=self.decoder_train,
                output_time_major=False,
                impute_finished=True,tf
                maximum_iterations=tf.reduce_max(self.decoder_train_length),
