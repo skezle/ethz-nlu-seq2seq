@@ -291,7 +291,7 @@ class BaselineModel():
 
     def _init_summary(self):
         loss = tf.summary.scalar("loss", self.loss)
-        vali_loss = tf.summary.scalar("loss", self.validation_loss)
+        vali_loss = tf.summary.scalar("validation_loss", self.validation_loss)
         self.summary_op = tf.summary.merge([loss])
         self.validation_summary_op = tf.summary.merge([vali_loss])
 
