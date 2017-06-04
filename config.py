@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 class Config:
-    vocabulary_size = 10000
+    vocabulary_size = 10018
     bidirectional_encoder = False
     encoder_cell_size = 512
     encoder_cell = tf.contrib.rnn.LSTMCell(encoder_cell_size)
@@ -34,4 +34,13 @@ class Config:
     both_datasets_tuples_filepath = 'Training_both_datasets.txt'
     use_CORNELL_for_training = True
     use_CORNELL_for_word2vec = True
+
+    ###
+    # Genres extraction
+    ###
+    use_genres = True
+    genres_basedataset_metainfo_path = 'data/MetaInfo.txt'
+    genres_basedataset_training_path = 'data/Training_Shuffled_Dataset_Labels.txt'
+    genres_basedataset_validation_path = 'data/Validation_Shuffled_Dataset_Labels.txt'
+    genres_cornell_metainfo_path = 'data/cornell_movie_dialogs_corpus/movie_titles_metadata.txt'
 

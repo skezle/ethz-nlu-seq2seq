@@ -3,12 +3,13 @@ import os.path
 from config import Config as conf
 from data_utility import *
 import re
+import extracting_genres
 
 # bullshit_lines = ['L474', 'L24609', 'L239088', 'L283548', 'L303243', 'L535288', 'L535203',
 #                   'L535163', 'L535148', 'L535133', 'L541062', 'L540986', 'L540485', 'L540483',
 #                   'L540476', 'L540816', 'L619064', 'L50129', 'L78957']
 
-def load_conversations(filename, bullshit_lines, script, characters_capslock, characters_firstupper):
+def load_conversations(filename, bullshit_lines, script, characters_capslock, characters_firstupper, line2movie, movie2genre):
     print("\t\tCORNELL: Loading dialogue turns from {} and applyting regular expressions..".format(filename))
 
     matching_quotationmarks = re.compile('\"(.*)\"')
@@ -57,6 +58,7 @@ def load_conversations(filename, bullshit_lines, script, characters_capslock, ch
     f = open(filename, 'r')
     convID = 0
     conversations = {}
+    genres = []
 
     for line in f:
         dialogue = line.strip().split(' +++$+++ ')
@@ -71,6 +73,10 @@ def load_conversations(filename, bullshit_lines, script, characters_capslock, ch
 
                 d1 = script[lineIDs[i]]
                 d2 = script[lineIDs[i + 1]]
+
+                movieID = line2movie[lineIDs[i]]
+                line_genre = movie2genre[movieID]
+                genres.append(line_genre)
 
                 tokens_d1 = d1.strip().split(" ");  tokens_d2 = d2.strip().split(" ")
                 new_tokens_d1 = [];                 new_tokens_d2 = []
@@ -157,7 +163,9 @@ def load_conversations(filename, bullshit_lines, script, characters_capslock, ch
                 conversations[convID] = dlg
                 convID = convID + 1
     f.close()
-    return conversations, convID
+    print("Number of tuples is {}".format(len(conversations)))
+    print("NUmber of genres in a list is {}".format(len(genres)))
+    return conversations, convID, genres
 
 
 def load_lines(filename):
@@ -165,6 +173,7 @@ def load_lines(filename):
 
     f = open(filename, 'r', encoding="ISO-8859-1")
     script = {}
+    line2movie = {}
     bullshit_lines = []
     characters_capslock = set()
     characters_firstupper = set()
@@ -175,7 +184,10 @@ def load_lines(filename):
         if len(script_line) < 5:
             bullshit_lines.append(script_line[0])
         else:
-            script[script_line[0]] = script_line[4]
+            lineID = script_line[0]
+            movieID = script_line[2]
+            line2movie[lineID] = movieID
+            script[lineID] = script_line[4]
             if len(script_line[3].lower().strip()) > 1:
                 s_cl = script_line[3].strip()
                 s_fu = "".join(c if i == 0 else c.lower() for i, c in enumerate(script_line[3].strip()))
@@ -189,7 +201,7 @@ def load_lines(filename):
     print("\t\tCORNELL: Number of unique characters: {}".format(len(characters_capslock)))
     print("\t\tCORNELl: Number of one-letter names: {}".format(len(discarded_characters)))
     f.close()
-    return script, bullshit_lines, characters_capslock, characters_firstupper, discarded_characters
+    return script, bullshit_lines, characters_capslock, characters_firstupper, discarded_characters, line2movie
 
 
 def dump_Tuples(filename, conversations, convID):
@@ -263,9 +275,11 @@ def tuples_check(filename):
 
 
 def create_Cornell_tuples(lines_path, conversations_path, tumples_path):
-    script, bullshit_lines, characters_capslock, character_firstupper, _ = load_lines(lines_path)
-    conversations, convID = load_conversations(conversations_path, bullshit_lines, script, characters_capslock, character_firstupper)
+    script, bullshit_lines, characters_capslock, character_firstupper, _, line2movie = load_lines(lines_path)
+    movie2genre, _ = extracting_genres.extract_cornell_genres()
+    conversations, convID, matching = load_conversations(conversations_path, bullshit_lines, script, characters_capslock, character_firstupper, line2movie, movie2genre)
     dump_Tuples(tumples_path, conversations, convID)
+    return matching
 
 
 def mainFunc():

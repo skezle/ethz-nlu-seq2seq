@@ -7,6 +7,7 @@ from math import ceil
 from config import Config as conf
 from random import shuffle
 from shutil import copyfile
+import extracting_genres
 
 START_TOKEN = "<bos>"
 END_TOKEN = "<eos>"
@@ -39,10 +40,22 @@ def triples_to_tuples(input_filepath, output_filepath):
     f = open(input_filepath, 'r')
     f1 = open(output_filepath, 'w')
 
+    if conf.use_genres:
+        if input_filepath == TRAINING_FILEPATH:
+            _, _, matching, _ = extracting_genres.extract_base_dataset_genres(True, False)
+        if input_filepath == VALIDATION_FILEPATH:
+            _, _, _, matching = extracting_genres.extract_base_dataset_genres(False, True)
+
+    i = 0
     for line in f:
         triples = line.strip().split('\t')
-        f1.write("{}\t{}\n".format(triples[0], triples[1]))
-        f1.write("{}\t{}\n".format(triples[1], triples[2]))
+        if conf.use_genres:
+            f1.write("{} {}\t{}\n".format(matching[i], triples[0], triples[1]))
+            f1.write("{} {}\t{}\n".format(matching[i], triples[1], triples[2]))
+        else:
+            f1.write("{}\t{}\n".format(triples[0], triples[1]))
+            f1.write("{}\t{}\n".format(triples[1], triples[2]))
+        i = i+1
 
     f.close()
     f1.close()
@@ -63,19 +76,27 @@ def merge(base_dataset_tuples_filepath, cornell_tuples_filepath, output_filepath
         print("\tNumber of tuples loaded from base dataset: {}".format(numlines))
         print("Merging base dataset with Cornell: loading Cornell dataset..")
         if not os.path.isfile(cornell_tuples_filepath):
-            cornell_loading.create_Cornell_tuples(conf.CORNELL_lines_path, conf.CORNELL_conversations_path, conf.CORNELL_TUPLES_PATH)
+            matching = cornell_loading.create_Cornell_tuples(conf.CORNELL_lines_path, conf.CORNELL_conversations_path, conf.CORNELL_TUPLES_PATH)
         f2 = open(cornell_tuples_filepath, 'r')
+        i = 0
         for line in f2:
             couples = line.strip().split('\t')
             if len(couples) > 2:
                 k = 1
                 while len(couples[k]) <= 0 and k <= len(couples):
                     k = k + 1
-                f1.write("{}\t{}\n".format(couples[0], couples[k]))
+                if conf.use_genres:
+                    f1.write("{} {}\t{}\n".format(matching[i], couples[0], couples[k]))
+                else:
+                    f1.write("{}\t{}\n".format(couples[0], couples[k]))
                 numlines = numlines + 1
             else:
-                f1.write(line)
+                if conf.use_genres:
+                    f1.write("{} {}".format(matching[i], line))
+                else:
+                    f1.write(line)
                 numlines = numlines + 1
+            i = i+1
         f2.close()
         f1.close()
         print("\tTotal number of dumped lines: {}".format(numlines))
