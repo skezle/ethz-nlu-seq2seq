@@ -244,9 +244,9 @@ class BaselineModel():
             ## Training
             decoder_train_outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
                 decoder=self.decoder_train,
-                output_time_major=False,
+                output_time_major=True,
                 impute_finished=True,
-                maximum_iterations=None, #conf.input_sentence_max_length,
+                maximum_iterations=self.decoder_train_length,
                 scope=scope)    
 
             self.decoder_logits_train = output_fn(decoder_train_outputs.rnn_output)
@@ -259,7 +259,7 @@ class BaselineModel():
             ## Validation
             decoder_validation_outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
                 decoder=self.decoder_train,
-                output_time_major=False,
+                output_time_major=True,
                 impute_finished=True,
                 maximum_iterations=None, # 
                 scope=scope)    
