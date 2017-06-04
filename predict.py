@@ -5,7 +5,7 @@ from random import choice
 from tqdm import tqdm
 from data_utility import *
 from baseline import BaselineModel
-
+from beamsearch.beamsearch import BeamsearchModel
 ###
 # Graph execution
 ###
@@ -91,7 +91,7 @@ def mainFunc(argv):
                               vocab_size=conf.vocabulary_size,
                               embedding_size=conf.word_embedding_size,
                               bidirectional=conf.bidirectional_encoder,
-                              attention=True,
+                              attention=False,
                               dropout=conf.use_dropout,
                               num_layers=conf.num_layers)
 
@@ -130,15 +130,9 @@ def mainFunc(argv):
                         total=ceil(len(validation_enc_inputs) / conf.batch_size)):
 
                     feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths)
-                    encoder_state = sess.run([model.encoder_state], feed_dect)
+                    final_outputs, final_state, final_sequence_lengths = sess.run(model.decoder_prediction_inference, feed_dict).T
 
-                    model.step(
-                            0,
-                            inputs,
-                            state,
-                        )
-
-                    for timestep in xrange(1, conf.max_decoder_inference_length):
+                    print(final_outputs)
                         
 
 

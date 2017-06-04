@@ -290,6 +290,13 @@ class BeamsearchModel():
                 output_layer=output_fn,
                 length_penalty_weight=conf.beam_length_penalty_weight)
 
+            self.decoder_prediction_inference = tf.contrib.seq2seq.dynamic_decode(
+                decoder=self.beam_decoder,
+                output_time_major=True,
+                impute_finished=True,
+                maximum_iterations=conf.max_decoder_inference_length,
+                scope=scope)
+
     def _init_optimizer(self):
         logits = tf.transpose(self.decoder_logits_train, [1, 0, 2])
         targets = tf.transpose(self.decoder_train_targets, [1, 0])
