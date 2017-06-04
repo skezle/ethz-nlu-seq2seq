@@ -24,6 +24,8 @@ class BaselineModel():
                  dropout=False,
                  num_layers=1):
         self.bidirectional = bidirectional
+        self.encoder_scope_name = "Encoder" if bidirectional else "BidirectionalEncoder"
+        self.decoder_scope_name = "Decoder"
         self.attention = attention ## used when initialising the decoder
         self.dropout = dropout
         self.num_layers = num_layers
@@ -47,8 +49,7 @@ class BaselineModel():
         
         self._init_placeholders()
 
-        self._init_dropout()
-        self._init_deep()
+        self._init_cells()
 
         self._init_decoder_train_connectors()
         self._init_embeddings()
@@ -64,15 +65,22 @@ class BaselineModel():
 
         self._init_summary()
 
-    def _init_dropout(self):
-        if self.dropout:
-            self.encoder_cell = tf.contrib.rnn.DropoutWrapper(self.encoder_cell, input_keep_prob=self.dropout_keep_prob)
-            self.decoder_cell = tf.contrib.rnn.DropoutWrapper(self.decoder_cell, input_keep_prob=self.dropout_keep_prob)
+    def _init_cells(self):
+        with tf.variable_scope(self.encoder_scope_name) as scope:
+            cell = tf.contrib.rnn.LSTMCell(conf.encoder_cell_size)
+            if self.dropout:
+                cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=self.dropout_keep_prob)
+            if self.num_layers != 1:
+                tf.contrib.rnn.MultiRNNCell([cell for _ in xrange(self.num_layers)]) # The cells in the different layers share the same weights
+            self.encoder_cell = cell
 
-    def _init_deep(self):
-        if self.num_layers != 1:
-            self.encoder_cell = tf.contrib.rnn.MultiRNNCell([self.encoder_cell] * self.num_layers)
-            self.decoder_cell = tf.contrib.rnn.MultiRNNCell([self.decoder_cell] * self.num_layers)
+        with tf.variable_scope(self.decoder_scope_name) as scope:
+            cell = tf.contrib.rnn.LSTMCell(conf.decoder_cell_size)
+            if self.dropout:
+                cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=self.dropout_keep_prob)
+            if self.num_layers != 1:
+                tf.contrib.rnn.MultiRNNCell([cell for _ in xrange(self.num_layers)]) # The cells in the different layers share the same weights
+            self.decoder_cell = cell
 
     def _init_placeholders(self):
         """ Everything is time-major """
@@ -163,7 +171,7 @@ class BaselineModel():
                 self.embedding_matrix, self.decoder_train_inputs)
 
     def _init_simple_encoder(self):
-        with tf.variable_scope("Encoder") as scope:
+        with tf.variable_scope(self.encoder_scope_name) as scope:
             (self.encoder_outputs, self.encoder_state) = (
                 tf.nn.dynamic_rnn(cell=self.encoder_cell,
                                   inputs=self.encoder_inputs_embedded,
@@ -173,7 +181,7 @@ class BaselineModel():
                 )
 
     def _init_bidirectional_encoder(self):
-        with tf.variable_scope("BidirectionalEncoder") as scope:
+        with tf.variable_scope(self.encoder_scope_name) as scope:
 
             ((encoder_fw_outputs,
               encoder_bw_outputs),
@@ -201,7 +209,7 @@ class BaselineModel():
                 self.encoder_state = tf.concat((encoder_fw_state, encoder_bw_state), 1, name='bidirectional_concat')
 
     def _init_decoder(self):
-        with tf.variable_scope("Decoder") as scope:
+        with tf.variable_scope(self.decoder_scope_name) as scope:
             def output_fn(outputs):
                 ##return tf.contrib.layers.linear(outputs, self.vocab_size, scope=scope)
                 return tf.contrib.layers.fully_connected(inputs=outputs,
@@ -211,7 +219,21 @@ class BaselineModel():
                                                          scope=scope)
 
             if not self.attention:
+                helper = tf.contrib.seq2seq.TrainingHelper(
+                            input=self.encoder_inputs,
+                            sequence_length=self.encoder_inputs_length,
+                            time_major=True)
+
+                self.decoder = tf.contrib.seq2seq.BasicDecoder(
+                    cell=self.decoder_cell,
+                    helper=helper,
+                    initial_state=self.encoder_state,
+                    output_layer=output_fn)
+
                 decoder_fn_train = seq2seq.simple_decoder_fn_train(encoder_state=self.encoder_state)
+                self.basic_decoder = tf.contrib.seq2seq.BasicDecoder(
+                    cell=self.decoder_cell,
+                    )
                 decoder_fn_inference = seq2seq.simple_decoder_fn_inference(
                     output_fn=output_fn,
                     encoder_state=self.encoder_state, ## output of the encoder
@@ -268,20 +290,14 @@ class BaselineModel():
                 )
 
             ## Training
-            (self.decoder_outputs_train,
-             self.decoder_state_train,
-             self.decoder_context_state_train) = (
-                seq2seq.dynamic_rnn_decoder(
-                    cell=self.decoder_cell,
-                    decoder_fn=decoder_fn_train,
-                    inputs=self.decoder_train_inputs_embedded,
-                    sequence_length=self.decoder_train_length,
-                    time_major=True,
-                    scope=scope,
-                )
-            )
+            self.decoder_logits_train, _ = tf.contrib.seq2seq.dynamic_decode(
+               decoder=self.decoder,
+               output_time_major=False,
+               impute_finished=True,tf
+               maximum_iterations=tf.reduce_max(self.decoder_train_length),
+               scope=scope)
 
-            self.decoder_logits_train = output_fn(self.decoder_outputs_train)
+            #self.decoder_logits_train = output_fn(self.decoder_outputs_train)
             self.decoder_softmax_train = tf.nn.softmax(self.decoder_logits_train)
 
             self.decoder_prediction_train = tf.argmax(self.decoder_logits_train, axis=-1, name='decoder_prediction_train')
