@@ -215,7 +215,7 @@ class BaselineModel():
             if not self.attention:
                 trainingHelper = tf.contrib.seq2seq.TrainingHelper(
                             inputs=self.decoder_train_inputs_embedded,
-                            sequence_length=self.encoder_inputs_length,
+                            sequence_length=self.decoder_train_length,
                             time_major=True)
 
                 self.decoder_train = tf.contrib.seq2seq.BasicDecoder(
@@ -246,7 +246,7 @@ class BaselineModel():
                 decoder=self.decoder_train,
                 output_time_major=False,
                 impute_finished=True,
-                maximum_iterations=conf.max_decoder_inference_length,
+                maximum_iterations=None, #conf.input_sentence_max_length,
                 scope=scope)    
 
             self.decoder_logits_train = output_fn(decoder_train_outputs.rnn_output)
@@ -255,6 +255,16 @@ class BaselineModel():
             self.decoder_prediction_train = tf.argmax(self.decoder_logits_train, axis=-1, name='decoder_prediction_train')
 
             scope.reuse_variables()
+
+            ## Validation
+            decoder_validation_outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
+                decoder=self.decoder_train,
+                output_time_major=False,
+                impute_finished=True,
+                maximum_iterations=None, # 
+                scope=scope)    
+
+            self.decoder_logits_validation = output_fn(decoder_validation_outputs.rnn_output)
 
             ## Prediction
             decoder_inference_outputs, _, self.decoder_prediction_lengths = tf.contrib.seq2seq.dynamic_decode(
@@ -268,8 +278,11 @@ class BaselineModel():
 
     def _init_optimizer(self):
         logits = tf.transpose(self.decoder_logits_train, [1, 0, 2])
+        validation_logits = tf.transpose(self.decoder_logits_validation, [1, 0, 2])
         targets = tf.transpose(self.decoder_train_targets, [1, 0])
         self.loss = seq2seq.sequence_loss(logits=logits, targets=targets,
+                                          weights=self.loss_weights)
+        self.validation_loss = seq2seq.sequence_loss(logits=validation_logits, targets=targets,
                                           weights=self.loss_weights)
         optimizer = tf.train.AdamOptimizer()
         gradients, variables = zip(*optimizer.compute_gradients(self.loss))
@@ -277,8 +290,10 @@ class BaselineModel():
         self.train_op = optimizer.apply_gradients(zip(gradients, variables))
 
     def _init_summary(self):
-        tf.summary.scalar("loss", self.loss)
-        self.summary_op = tf.summary.merge_all()
+        loss = tf.summary.scalar("loss", self.loss)
+        vali_loss = tf.summary.scalar("loss", self.validation_loss)
+        self.summary_op = tf.summary.merge([loss])
+        self.validation_summary_op = tf.summary.merge([vali_loss])
 
     def make_train_inputs(self, input_seq, input_seq_len, target_seq, target_seq_len):
         return {
