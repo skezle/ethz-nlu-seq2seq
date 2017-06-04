@@ -59,9 +59,7 @@ def mainFunc(argv):
     print("Initializing model")
     model = None
     if experiment == "baseline":
-        model = BaselineModel(encoder_cell=conf.encoder_cell,
-                              decoder_cell=conf.decoder_cell,
-                              vocab_size=conf.vocabulary_size,
+        model = BaselineModel(vocab_size=conf.vocabulary_size,
                               embedding_size=conf.word_embedding_size,
                               bidirectional=conf.bidirectional_encoder,
                               attention=False,
@@ -69,9 +67,7 @@ def mainFunc(argv):
                               num_layers=conf.num_layers)
 
     elif experiment == "attention":
-        model = BaselineModel(encoder_cell=conf.encoder_cell,
-                              decoder_cell=conf.decoder_cell,
-                              vocab_size=conf.vocabulary_size,
+        model = BaselineModel(vocab_size=conf.vocabulary_size,
                               embedding_size=conf.word_embedding_size,
                               bidirectional=conf.bidirectional_encoder,
                               attention=True,

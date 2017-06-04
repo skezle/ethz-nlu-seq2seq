@@ -2,9 +2,9 @@ import tensorflow as tf
 
 class Config:
     vocabulary_size = 10000
-    bidirectional_encoder = True
+    bidirectional_encoder = False
     encoder_cell_size = 512
-    decoder_cell_size = 1024
+    decoder_cell_size = 512
     num_layers = 1
     use_dropout = False
     dropout_keep_prob = 0.5
