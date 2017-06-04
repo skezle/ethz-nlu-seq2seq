@@ -246,7 +246,7 @@ class BaselineModel():
                 decoder=self.decoder_train,
                 output_time_major=True,
                 impute_finished=True,
-                maximum_iterations=self.decoder_train_length,
+                maximum_iterations=conf.input_sentence_max_length,
                 scope=scope)    
 
             self.decoder_logits_train = output_fn(decoder_train_outputs.rnn_output)
