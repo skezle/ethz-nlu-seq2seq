@@ -231,7 +231,7 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
     assert len(enc_inputs) == len(dec_inputs)
     enc_dec = list(zip(enc_inputs, dec_inputs))     
     if filter_long_sent:
-        enc_dec = list(filter(lambda tup: len(tup[0]) < conf.input_sentence_max_length or len(tup[1]) < conf.input_sentence_max_length, enc_dec))
+        enc_dec = list(filter(lambda tup: len(tup[0]) < conf.input_sentence_max_length and len(tup[1]) < conf.input_sentence_max_length, enc_dec))
     
     if sort_data:
         enc_dec = zip(enc_inputs, dec_inputs)
