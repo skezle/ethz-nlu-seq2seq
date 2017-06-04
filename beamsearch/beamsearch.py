@@ -10,7 +10,7 @@ from tensorflow.contrib.layers import safe_embedding_lookup_sparse as embedding_
 from tensorflow.contrib.rnn import LSTMCell, LSTMStateTuple, GRUCell
 from data_utility import START_TOKEN_INDEX, END_TOKEN_INDEX, PAD_TOKEN_INDEX
 from config import Config as conf
-
+from beamsearch.beam_search_decoder import BeamSearchDecoder 
 
 class BeamsearchModel():
     """Seq2Seq model using blocks from new `tf.contrib.seq2seq`."""
@@ -22,13 +22,16 @@ class BeamsearchModel():
                  bidirectional=True,
                  attention=False,
                  dropout=False,
-                 num_layers=1):
+                 num_layers=1,
+                 is_training=True):
         self.bidirectional = bidirectional
         self.encoder_scope_name = "Encoder" if bidirectional else "BidirectionalEncoder"
         self.decoder_scope_name = "Decoder"
+
         self.attention = attention ## used when initialising the decoder
         self.dropout = dropout
         self.num_layers = num_layers
+        self.is_training = is_training
 
         self.vocab_size = vocab_size
         self.embedding_size = embedding_size
@@ -114,11 +117,12 @@ class BeamsearchModel():
         Here we do a bit of plumbing to set this up.
         """
         with tf.name_scope('DecoderTrainFeeds'):
-            sequence_size, self.batch_size = tf.unstack(tf.shape(self.decoder_targets))
+            sequence_size, batch_size = tf.unstack(tf.shape(self.decoder_targets))
 
-            BOS_SLICE = tf.ones([1, self.batch_size], dtype=tf.int32) * self.BOS
-            PAD_SLICE = tf.ones([1, self.batch_size], dtype=tf.int32) * self.PAD
+            BOS_SLICE = tf.ones([1, batch_size], dtype=tf.int32) * self.BOS
+            PAD_SLICE = tf.ones([1, batch_size], dtype=tf.int32) * self.PAD
 
+            #self.decoder_targets = tf.reshape(self.decoder_targets, [-1, conf.batch_size])
             self.decoder_train_inputs = tf.concat([BOS_SLICE, self.decoder_targets], axis=0)
             self.decoder_train_length = self.decoder_targets_length + 1
 
@@ -212,74 +216,72 @@ class BeamsearchModel():
                                                          num_outputs=self.vocab_size,
                                                          activation_fn=None, ## linear
                                                          scope=scope)
-            if not self.attention:
-                trainingHelper = tf.contrib.seq2seq.TrainingHelper(
-                            inputs=self.decoder_train_inputs_embedded,
-                            sequence_length=self.decoder_train_length,
-                            time_major=True)
+            if self.is_training:
+                if not self.attention:
+                    
+                    trainingHelper = tf.contrib.seq2seq.TrainingHelper(
+                                inputs=self.decoder_train_inputs_embedded,
+                                sequence_length=self.decoder_train_length,
+                                time_major=True)
 
-                self.decoder_train = tf.contrib.seq2seq.BasicDecoder(
-                    cell=self.decoder_cell,
-                    helper=trainingHelper,
-                    initial_state=self.encoder_state,
-                    output_layer=None)
+                    self.decoder_train = tf.contrib.seq2seq.BasicDecoder(
+                        cell=self.decoder_cell,
+                        helper=trainingHelper,
+                        initial_state=self.encoder_state,
+                        output_layer=None)
+                    
+                    
+                #else:
+                    # TODO: Redo for tensorflow r1.2
+                    # see https://www.tensorflow.org/versions/r1.2/api_guides/python/contrib.seq2seq
 
-                
+                ## Training
+                decoder_train_outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
+                    decoder=self.decoder_train,
+                    output_time_major=True,
+                    impute_finished=False,
+                    maximum_iterations=conf.input_sentence_max_length,
+                    scope=scope)    
 
-                inferenceHelper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
-                    embedding=self.embedding_matrix,
-                    start_tokens=tf.tile([START_TOKEN_INDEX], [self.batch_size]),
-                    end_token=END_TOKEN_INDEX)
+                self.decoder_logits_train = output_fn(decoder_train_outputs.rnn_output)
+                self.decoder_softmax_train = tf.nn.softmax(decoder_train_outputs.rnn_output)
 
-                self.decoder_inference = tf.contrib.seq2seq.BeamSearchDecoder(
-                    cell=self.decoder_cell,
-                    embedding=self.embedding_matrix,
-                    start_tokens=tf.tile([START_TOKEN_INDEX], [self.batch_size]),
-                    end_token=END_TOKEN_INDEX,
-                    initial_state=self.encoder_state,
-                    beam_width=conf.beam_width,
-                    output_layer=None,
-                    length_penalty_weight=conf.beam_length_penalty_weight)
+                self.decoder_prediction_train = tf.argmax(self.decoder_logits_train, axis=-1, name='decoder_prediction_train')
 
-            #else:
-                # TODO: Redo for tensorflow r1.2
-                # see https://www.tensorflow.org/versions/r1.2/api_guides/python/contrib.seq2seq
+                scope.reuse_variables()
 
-            ## Training
-            decoder_train_outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
-                decoder=self.decoder_train,
-                output_time_major=True,
-                impute_finished=True,
-                maximum_iterations=conf.input_sentence_max_length,
-                scope=scope)    
+                ## Validation
+                decoder_validation_outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
+                    decoder=self.decoder_train,
+                    output_time_major=True,
+                    impute_finished=True,
+                    maximum_iterations=None, # 
+                    scope=scope)    
 
-            self.decoder_logits_train = output_fn(decoder_train_outputs.rnn_output)
-            self.decoder_softmax_train = tf.nn.softmax(decoder_train_outputs.rnn_output)
-
-            self.decoder_prediction_train = tf.argmax(self.decoder_logits_train, axis=-1, name='decoder_prediction_train')
-
-            scope.reuse_variables()
-
-            ## Validation
-            decoder_validation_outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
-                decoder=self.decoder_train,
-                output_time_major=True,
-                impute_finished=True,
-                maximum_iterations=None, # 
-                scope=scope)    
-
-            self.decoder_logits_validation = output_fn(decoder_validation_outputs.rnn_output)
-
-            ## Prediction
-            decoder_inference_outputs, _, self.decoder_prediction_lengths = tf.contrib.seq2seq.dynamic_decode(
-               decoder=self.decoder_inference,
-               output_time_major=False,
-               impute_finished=True,
-               maximum_iterations=conf.max_decoder_inference_length,
-               scope=scope)
+                self.decoder_logits_validation = output_fn(decoder_validation_outputs.rnn_output)
+                ## Prediction
+            else:
+                cell_state = cell.zero_state(
+                        dtype=tf.float32, batch_size=conf.batch_size * conf.beam_width)
+                self.decoder_inference = BeamSearchDecoder( 
+                        cell=self.decoder_cell,
+                        embedding=self.embedding_matrix,
+                        start_tokens=tf.tile([START_TOKEN_INDEX], [conf.batch_size]),
+                        end_token=END_TOKEN_INDEX,
+                        initial_state=cell_state,
+                        beam_width=conf.beam_width,
+                        output_layer=None,
+                        length_penalty_weight=conf.beam_length_penalty_weight)
+                    
+                decoder_inference_outputs, _, self.decoder_prediction_lengths = tf.contrib.seq2seq.dynamic_decode(
+                   decoder=self.decoder_inference,
+                   output_time_major=False,
+                   impute_finished=False,
+                   maximum_iterations=None, #conf.max_decoder_inference_length,
+                   scope=None)
 
             self.decoder_prediction_inference = tf.argmax(output_fn(decoder_train_outputs.rnn_output), axis=-1, name='decoder_prediction_inference')
-
+            
     def _init_optimizer(self):
         logits = tf.transpose(self.decoder_logits_train, [1, 0, 2])
         validation_logits = tf.transpose(self.decoder_logits_validation, [1, 0, 2])

@@ -79,7 +79,8 @@ def mainFunc(argv):
                               bidirectional=conf.bidirectional_encoder,
                               attention=False,
                               dropout=conf.use_dropout,
-                              num_layers=conf.num_layers)
+                              num_layers=conf.num_layers,
+                              is_training=True)
 
     assert model != None
     enc_inputs, dec_inputs, word_2_index, index_2_word = get_data_by_type('train')
