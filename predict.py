@@ -73,7 +73,7 @@ def mainFunc(argv):
                               attention=False,
                               dropout=conf.use_dropout,
                               num_layers=conf.num_layers,
-                              is_training=True)
+                              is_training=False)
 
     elif experiment == "attention":
         model = BaselineModel(vocab_size=conf.vocabulary_size,
@@ -82,7 +82,7 @@ def mainFunc(argv):
                               attention=True,
                               dropout=conf.use_dropout,
                               num_layers=conf.num_layers,
-                              is_training=True)
+                              is_training=False)
 
     assert model != None
     # Materialize validation data
@@ -96,34 +96,18 @@ def mainFunc(argv):
         sess.run(tf.global_variables_initializer())
         saver.restore(sess, checkpoint_filepath)
 
-        if experiment in ("baseline", "attention"):
-            with open(output_filepath, 'w') as out:
-                for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(
-                        bucket_by_sequence_length(validation_enc_inputs, _, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False),
-                        total=ceil(len(validation_enc_inputs) / conf.batch_size)):
+        with open(output_filepath, 'w') as out:
+            for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(
+                    bucket_by_sequence_length(validation_enc_inputs, _, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False),
+                    total=ceil(len(validation_enc_inputs) / conf.batch_size)):
 
-                    feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths)
+                feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths)
 
-                    predictions = sess.run(model.decoder_prediction_inference, feed_dict).T
-                    truncated_predictions = truncate_after_eos(predictions)
-                    out.writelines(map(maptoword, truncated_predictions))
+                predictions = sess.run(model.decoder_prediction_inference, feed_dict).T
+                truncated_predictions = truncate_after_eos(predictions)
+                out.writelines(map(maptoword, truncated_predictions))
 
-                    global_step += 1
-        elif experiment == "beamsearch":
-
-            initialize_tuple = model.beam_decoder.initialize()
-
-            with open(output_filepath, 'w') as out:
-                for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(
-                        bucket_by_sequence_length(validation_enc_inputs, _, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False),
-                        total=ceil(len(validation_enc_inputs) / conf.batch_size)):
-
-                    feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths)
-                    final_outputs, final_sequence_lengths = sess.run([model.decoder_inference_outputs, model.decoder_prediction_lengths], feed_dict).T
-
-                    print(final_outputs)
-                    print(final_sequence_lengths)
-                        
+                global_step += 1                        
 
 
 if __name__ == "__main__":

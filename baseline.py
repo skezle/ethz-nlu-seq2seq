@@ -125,7 +125,7 @@ class BaselineModel():
         with tf.name_scope('DecoderTrainFeeds'):
             batch_size, sequence_size = tf.unstack(tf.shape(self.decoder_targets))
 
-            self.batch_size = batch_size
+            self.batch_size, _ = tf.unstack(tf.shape(self.encoder_inputs))
             BOS_SLICE = tf.ones([batch_size, 1], dtype=tf.int32) * self.BOS
             PAD_SLICE = tf.ones([batch_size, 1], dtype=tf.int32) * self.PAD
 
@@ -289,7 +289,15 @@ class BaselineModel():
                     initial_state=self.decoder_init_state,
                     output_layer=self.dense_layer)
 
-            self.decoder_prediction_inference = tf.argmax(output_fn(decoder_inference_outputs.rnn_output), axis=-1, name='decoder_prediction_inference')
+            ## Prediction
+            decoder_prediction_outputs, _ = tf.contrib.seq2seq.dynamic_decode(
+                decoder=self.decoder_inference,
+                output_time_major=False,
+                impute_finished=True,
+                maximum_iterations=conf.max_decoder_inference_length,
+                scope=scope)
+
+            self.decoder_prediction_inference = tf.argmax(decoder_prediction_outputs.rnn_output, axis=-1, name='decoder_prediction_inference')
             
     def _init_optimizer(self):
         logits = tf.transpose(self.decoder_logits_train, [1, 0, 2])
