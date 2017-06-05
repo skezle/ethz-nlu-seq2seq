@@ -60,6 +60,8 @@ class BaselineModel():
         else:
             self._init_simple_encoder()
 
+        self._init_attention()
+
         if self.is_training:
             self._init_train_decoder()
             self._init_optimizer()
@@ -212,40 +214,51 @@ class BaselineModel():
             elif isinstance(encoder_fw_state, tf.Tensor):
                 self.encoder_state = tf.concat((encoder_fw_state, encoder_bw_state), 1, name='bidirectional_concat')
 
+    def _init_attention(self):
+        with tf.variable_scope(self.decoder_scope_name) as scope:
+            self.dense_layer = Dense(conf.vocabulary_size,
+                                kernel_initializer = tf.contrib.layers.xavier_initializer())
+
+            self.decoder_init_state = self.encoder_state
+            if self.attention:
+                attention_mechanism = tf.contrib.seq2seq.BahdanauAttention(
+                    num_units=conf.encoder_cell_size,
+                    memory=self.encoder_outputs,
+                    memory_sequence_length=self.encoder_inputs_length,
+                    name="BahdanauAttention")
+
+                self.decoder_cell = tf.contrib.seq2seq.DynamicAttentionWrapper(
+                    cell=self.decoder_cell,
+                    attention_mechanism=attention_mechanism,
+                    attention_size=conf.decoder_cell_size)             
+            
+                self.decoder_init_state = tf.contrib.seq2seq.DynamicAttentionWrapperState(
+                        self.encoder_state,
+                        _zero_state_tensors(conf.decoder_cell_size, 
+                                            self.batch_size, 
+                                            tf.float32))
     def _init_train_decoder(self):
         with tf.variable_scope(self.decoder_scope_name) as scope:
-            def output_fn(outputs):
-                return tf.contrib.layers.fully_connected(inputs=outputs,
-                                                         num_outputs=self.vocab_size,
-                                                         activation_fn=None, ## linear
-                                                         scope=scope)
-            if not self.attention:
-                
-                trainingHelper = tf.contrib.seq2seq.TrainingHelper(
+            ## Training
+            trainingHelper = tf.contrib.seq2seq.TrainingHelper(
                             inputs=self.decoder_train_inputs_embedded,
                             sequence_length=self.decoder_train_length,
-                            time_major=True)
+                            time_major=False)
 
-                self.decoder_train = tf.contrib.seq2seq.BasicDecoder(
-                    cell=self.decoder_cell,
-                    helper=trainingHelper,
-                    initial_state=self.encoder_state,
-                    output_layer=None)
-                
-                
-            #else:
-                # TODO: Redo for tensorflow r1.2
-                # see https://www.tensorflow.org/versions/r1.2/api_guides/python/contrib.seq2seq
+            self.decoder_train = tf.contrib.seq2seq.BasicDecoder(
+                cell=self.decoder_cell,
+                helper=trainingHelper,
+                initial_state=self.decoder_init_state,
+                output_layer=self.dense_layer)
 
-            ## Training
-            decoder_train_outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
+            decoder_train_outputs, _ = tf.contrib.seq2seq.dynamic_decode(
                 decoder=self.decoder_train,
-                output_time_major=True,
+                output_time_major=False,
                 impute_finished=False,
                 maximum_iterations=conf.input_sentence_max_length,
                 scope=scope)    
-
-            self.decoder_logits_train = output_fn(decoder_train_outputs.rnn_output)
+            
+            self.decoder_logits_train = decoder_train_outputs.rnn_output
             self.decoder_softmax_train = tf.nn.softmax(decoder_train_outputs.rnn_output)
 
             self.decoder_prediction_train = tf.argmax(self.decoder_logits_train, axis=-1, name='decoder_prediction_train')
@@ -265,11 +278,6 @@ class BaselineModel():
     
     def _init_inference_decoder(self):
         with tf.variable_scope(self.decoder_scope_name) as scope:
-            dense_layer = Dense(conf.vocabulary_size,
-                                kernel_initializer = tf.truncated_normal_initializer(  
-                                mean=0.0, 
-                                stddev=0.1))
-
             inferenceHelper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
                     embedding=self.embedding_matrix,
                     start_tokens=tf.tile([START_TOKEN_INDEX], [self.batch_size]),
@@ -278,8 +286,8 @@ class BaselineModel():
             self.decoder_inference = tf.contrib.seq2seq.BasicDecoder(
                     cell=self.decoder_cell,
                     helper=inferenceHelper,
-                    initial_state=self.encoder_state,
-                    output_layer=None)
+                    initial_state=self.decoder_init_state,
+                    output_layer=self.dense_layer)
 
             self.decoder_prediction_inference = tf.argmax(output_fn(decoder_inference_outputs.rnn_output), axis=-1, name='decoder_prediction_inference')
             
