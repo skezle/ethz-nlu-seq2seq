@@ -10,7 +10,7 @@ from tensorflow.contrib.layers import safe_embedding_lookup_sparse as embedding_
 from tensorflow.contrib.rnn import LSTMCell, LSTMStateTuple, GRUCell
 from data_utility import START_TOKEN_INDEX, END_TOKEN_INDEX, PAD_TOKEN_INDEX
 from config import Config as conf
-
+from beamsearch.beam_search_decoder import BeamSearchDecoder
 
 class BaselineModel():
     """Seq2Seq model using blocks from new `tf.contrib.seq2seq`."""
@@ -22,13 +22,16 @@ class BaselineModel():
                  bidirectional=True,
                  attention=False,
                  dropout=False,
-                 num_layers=1):
+                 num_layers=1,
+                 is_training=True):
         self.bidirectional = bidirectional
         self.encoder_scope_name = "Encoder" if bidirectional else "BidirectionalEncoder"
         self.decoder_scope_name = "Decoder"
+
         self.attention = attention ## used when initialising the decoder
         self.dropout = dropout
         self.num_layers = num_layers
+        self.is_training = is_training
 
         self.vocab_size = vocab_size
         self.embedding_size = embedding_size
@@ -56,11 +59,14 @@ class BaselineModel():
         else:
             self._init_simple_encoder()
 
-        self._init_decoder()
+        if self.is_training:
+            self._init_train_decoder()
+            self._init_optimizer()
+            self._init_summary()
+        else:
+            self._init_inference_decoder()
 
-        self._init_optimizer()
-
-        self._init_summary()
+        
 
     def _init_cells(self):
         with tf.variable_scope(self.encoder_scope_name) as scope:
@@ -114,11 +120,12 @@ class BaselineModel():
         Here we do a bit of plumbing to set this up.
         """
         with tf.name_scope('DecoderTrainFeeds'):
-            sequence_size, self.batch_size = tf.unstack(tf.shape(self.decoder_targets))
+            sequence_size, batch_size = tf.unstack(tf.shape(self.decoder_targets))
 
-            BOS_SLICE = tf.ones([1, self.batch_size], dtype=tf.int32) * self.BOS
-            PAD_SLICE = tf.ones([1, self.batch_size], dtype=tf.int32) * self.PAD
+            BOS_SLICE = tf.ones([1, batch_size], dtype=tf.int32) * self.BOS
+            PAD_SLICE = tf.ones([1, batch_size], dtype=tf.int32) * self.PAD
 
+            #self.decoder_targets = tf.reshape(self.decoder_targets, [-1, conf.batch_size])
             self.decoder_train_inputs = tf.concat([BOS_SLICE, self.decoder_targets], axis=0)
             self.decoder_train_length = self.decoder_targets_length + 1
 
@@ -205,7 +212,7 @@ class BaselineModel():
             elif isinstance(encoder_fw_state, tf.Tensor):
                 self.encoder_state = tf.concat((encoder_fw_state, encoder_bw_state), 1, name='bidirectional_concat')
 
-    def _init_decoder(self):
+    def _init_train_decoder(self):
         with tf.variable_scope(self.decoder_scope_name) as scope:
             def output_fn(outputs):
                 return tf.contrib.layers.fully_connected(inputs=outputs,
@@ -213,6 +220,7 @@ class BaselineModel():
                                                          activation_fn=None, ## linear
                                                          scope=scope)
             if not self.attention:
+                
                 trainingHelper = tf.contrib.seq2seq.TrainingHelper(
                             inputs=self.decoder_train_inputs_embedded,
                             sequence_length=self.decoder_train_length,
@@ -223,20 +231,8 @@ class BaselineModel():
                     helper=trainingHelper,
                     initial_state=self.encoder_state,
                     output_layer=None)
-
                 
-
-                inferenceHelper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
-                    embedding=self.embedding_matrix,
-                    start_tokens=tf.tile([START_TOKEN_INDEX], [self.batch_size]),
-                    end_token=END_TOKEN_INDEX)
-
-                self.decoder_inference = tf.contrib.seq2seq.BasicDecoder(
-                    cell=self.decoder_cell,
-                    helper=inferenceHelper,
-                    initial_state=self.encoder_state,
-                    output_layer=None)
-
+                
             #else:
                 # TODO: Redo for tensorflow r1.2
                 # see https://www.tensorflow.org/versions/r1.2/api_guides/python/contrib.seq2seq
@@ -245,7 +241,7 @@ class BaselineModel():
             decoder_train_outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
                 decoder=self.decoder_train,
                 output_time_major=True,
-                impute_finished=True,
+                impute_finished=False,
                 maximum_iterations=conf.input_sentence_max_length,
                 scope=scope)    
 
@@ -266,16 +262,26 @@ class BaselineModel():
 
             self.decoder_logits_validation = output_fn(decoder_validation_outputs.rnn_output)
 
-            ## Prediction
-            decoder_inference_outputs, _, self.decoder_prediction_lengths = tf.contrib.seq2seq.dynamic_decode(
-               decoder=self.decoder_inference,
-               output_time_major=False,
-               impute_finished=True,
-               maximum_iterations=conf.max_decoder_inference_length,
-               scope=scope)
+    def _init_inference_decoder(self):
+        with tf.variable_scope(self.decoder_scope_name) as scope:
+            def output_fn(outputs):
+                return tf.contrib.layers.fully_connected(inputs=outputs,
+                                                         num_outputs=self.vocab_size,
+                                                         activation_fn=None, ## linear
+                                                         scope=scope)
+            inferenceHelper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
+                    embedding=self.embedding_matrix,
+                    start_tokens=tf.tile([START_TOKEN_INDEX], [self.batch_size]),
+                    end_token=END_TOKEN_INDEX)
 
-            self.decoder_prediction_inference = tf.argmax(output_fn(decoder_train_outputs.rnn_output), axis=-1, name='decoder_prediction_inference')
+            self.decoder_inference = tf.contrib.seq2seq.BasicDecoder(
+                    cell=self.decoder_cell,
+                    helper=inferenceHelper,
+                    initial_state=self.encoder_state,
+                    output_layer=None)
 
+            self.decoder_prediction_inference = tf.argmax(output_fn(decoder_inference_outputs.rnn_output), axis=-1, name='decoder_prediction_inference')
+            
     def _init_optimizer(self):
         logits = tf.transpose(self.decoder_logits_train, [1, 0, 2])
         validation_logits = tf.transpose(self.decoder_logits_validation, [1, 0, 2])
