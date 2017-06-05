@@ -12,7 +12,7 @@ class Config:
     dropout_keep_prob = 0.5
     batch_size = 40
     log_directory = 'logs/'
-    num_epochs = 50
+    num_epochs = 20
     validation_summary_frequency = 100
     checkpoint_frequency = 5000
     trace_frequency = 10000
