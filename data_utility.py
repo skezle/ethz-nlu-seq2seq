@@ -42,16 +42,18 @@ def triples_to_tuples(input_filepath, output_filepath):
 
     if conf.use_genres:
         if input_filepath == TRAINING_FILEPATH:
-            _, _, matching, _ = extracting_genres.extract_base_dataset_genres(True, False)
+            _, ug, matching, _ = extracting_genres.extract_base_dataset_genres(True, False)
+            print("GENRES: Unique genres extracted from {} is {}".format(input_filepath, len(ug)))
         if input_filepath == VALIDATION_FILEPATH:
-            _, _, _, matching = extracting_genres.extract_base_dataset_genres(False, True)
+            _, ug, _, matching = extracting_genres.extract_base_dataset_genres(False, True)
+            print("GENRES: Unique genres extracted from {} is {}".format(input_filepath, len(ug)))
 
     i = 0
     for line in f:
         triples = line.strip().split('\t')
         if conf.use_genres:
-            f1.write("{} {}\t{}\n".format(matching[i], triples[0], triples[1]))
-            f1.write("{} {}\t{}\n".format(matching[i], triples[1], triples[2]))
+            f1.write("<{}> {}\t{}\n".format(matching[i], triples[0], triples[1]))
+            f1.write("<{}> {}\t{}\n".format(matching[i], triples[1], triples[2]))
         else:
             f1.write("{}\t{}\n".format(triples[0], triples[1]))
             f1.write("{}\t{}\n".format(triples[1], triples[2]))
@@ -60,10 +62,12 @@ def triples_to_tuples(input_filepath, output_filepath):
     f.close()
     f1.close()
     if input_filepath == TRAINING_FILEPATH and conf.use_CORNELL_for_training:
-        merge(output_filepath, conf.CORNELL_TUPLES_PATH, conf.both_datasets_tuples_filepath)
+        ugc = merge(output_filepath, conf.CORNELL_TUPLES_PATH, conf.both_datasets_tuples_filepath)
+        print("GENRES: Total number of unique genres is {}".format(len(ug.union(ugc))))
 
 
 def merge(base_dataset_tuples_filepath, cornell_tuples_filepath, output_filepath):
+    ug = None
     if conf.use_CORNELL_for_training:
         numlines = 0
         f = open(base_dataset_tuples_filepath, 'r')
@@ -76,7 +80,8 @@ def merge(base_dataset_tuples_filepath, cornell_tuples_filepath, output_filepath
         print("\tNumber of tuples loaded from base dataset: {}".format(numlines))
         print("Merging base dataset with Cornell: loading Cornell dataset..")
         if not os.path.isfile(cornell_tuples_filepath):
-            matching = cornell_loading.create_Cornell_tuples(conf.CORNELL_lines_path, conf.CORNELL_conversations_path, conf.CORNELL_TUPLES_PATH)
+            matching, ug = cornell_loading.create_Cornell_tuples(conf.CORNELL_lines_path, conf.CORNELL_conversations_path, conf.CORNELL_TUPLES_PATH)
+            print("GENRES: Unique genres extracted from {} is {}".format(cornell_tuples_filepath, len(ug)))
         f2 = open(cornell_tuples_filepath, 'r')
         i = 0
         for line in f2:
@@ -86,13 +91,13 @@ def merge(base_dataset_tuples_filepath, cornell_tuples_filepath, output_filepath
                 while len(couples[k]) <= 0 and k <= len(couples):
                     k = k + 1
                 if conf.use_genres:
-                    f1.write("{} {}\t{}\n".format(matching[i], couples[0], couples[k]))
+                    f1.write("<{}> {}\t{}\n".format(matching[i], couples[0], couples[k]))
                 else:
                     f1.write("{}\t{}\n".format(couples[0], couples[k]))
                 numlines = numlines + 1
             else:
                 if conf.use_genres:
-                    f1.write("{} {}".format(matching[i], line))
+                    f1.write("<{}> {}".format(matching[i], line))
                 else:
                     f1.write(line)
                 numlines = numlines + 1
@@ -100,6 +105,7 @@ def merge(base_dataset_tuples_filepath, cornell_tuples_filepath, output_filepath
         f2.close()
         f1.close()
         print("\tTotal number of dumped lines: {}".format(numlines))
+    return ug
 
 ###
 # Counts unique_tokens. No shit Sherlock...

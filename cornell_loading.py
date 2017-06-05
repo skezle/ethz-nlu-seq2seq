@@ -188,7 +188,7 @@ def load_lines(filename):
             movieID = script_line[2]
             line2movie[lineID] = movieID
             script[lineID] = script_line[4]
-            if len(script_line[3].lower().strip()) > 1:
+            if len(script_line[3].lower().strip()) > 1 and script_line[3].lower().strip() != 'don' and script_line[3].lower().strip() != 'all':
                 s_cl = script_line[3].strip()
                 s_fu = "".join(c if i == 0 else c.lower() for i, c in enumerate(script_line[3].strip()))
                 #print("{}\t\t{}".format(s_cl, s_fu))
@@ -276,10 +276,10 @@ def tuples_check(filename):
 
 def create_Cornell_tuples(lines_path, conversations_path, tumples_path):
     script, bullshit_lines, characters_capslock, character_firstupper, _, line2movie = load_lines(lines_path)
-    movie2genre, _ = extracting_genres.extract_cornell_genres()
+    movie2genre, unique_genres = extracting_genres.extract_cornell_genres()
     conversations, convID, matching = load_conversations(conversations_path, bullshit_lines, script, characters_capslock, character_firstupper, line2movie, movie2genre)
     dump_Tuples(tumples_path, conversations, convID)
-    return matching
+    return matching, unique_genres
 
 
 def mainFunc():

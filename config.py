@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 class Config:
-    vocabulary_size = 10018
+    vocabulary_size = 10024
     bidirectional_encoder = False
     encoder_cell_size = 512
     encoder_cell = tf.contrib.rnn.LSTMCell(encoder_cell_size)
@@ -18,7 +18,7 @@ class Config:
     trace_frequency = 10000
     trace_filename = "trace.json"
     input_sentence_max_length = 60
-    max_decoder_inference_length = 60
+    max_decoder_inference_length = 80
 
     use_word2vec = True
     word_embedding_size = 200
