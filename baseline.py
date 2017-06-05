@@ -8,9 +8,10 @@ import tensorflow as tf
 import tensorflow.contrib.seq2seq as seq2seq
 from tensorflow.contrib.layers import safe_embedding_lookup_sparse as embedding_lookup_unique
 from tensorflow.contrib.rnn import LSTMCell, LSTMStateTuple, GRUCell
+from tensorflow.python.layers.core import Dense
+from tensorflow.python.ops.rnn_cell_impl import _zero_state_tensors
 from data_utility import START_TOKEN_INDEX, END_TOKEN_INDEX, PAD_TOKEN_INDEX
 from config import Config as conf
-from beamsearch.beam_search_decoder import BeamSearchDecoder
 
 class BaselineModel():
     """Seq2Seq model using blocks from new `tf.contrib.seq2seq`."""
@@ -120,17 +121,18 @@ class BaselineModel():
         Here we do a bit of plumbing to set this up.
         """
         with tf.name_scope('DecoderTrainFeeds'):
-            sequence_size, batch_size = tf.unstack(tf.shape(self.decoder_targets))
+            batch_size, sequence_size = tf.unstack(tf.shape(self.decoder_targets))
 
-            BOS_SLICE = tf.ones([1, batch_size], dtype=tf.int32) * self.BOS
-            PAD_SLICE = tf.ones([1, batch_size], dtype=tf.int32) * self.PAD
+            self.batch_size = batch_size
+            BOS_SLICE = tf.ones([batch_size, 1], dtype=tf.int32) * self.BOS
+            PAD_SLICE = tf.ones([batch_size, 1], dtype=tf.int32) * self.PAD
 
             #self.decoder_targets = tf.reshape(self.decoder_targets, [-1, conf.batch_size])
-            self.decoder_train_inputs = tf.concat([BOS_SLICE, self.decoder_targets], axis=0)
+            self.decoder_train_inputs = tf.concat([BOS_SLICE, self.decoder_targets], axis=1)
             self.decoder_train_length = self.decoder_targets_length + 1
 
-            decoder_train_targets = tf.concat([self.decoder_targets, PAD_SLICE], axis=0)
-            decoder_train_targets_seq_len, _ = tf.unstack(tf.shape(decoder_train_targets))
+            decoder_train_targets = tf.concat([self.decoder_targets, PAD_SLICE], axis=1)
+            _, decoder_train_targets_seq_len = tf.unstack(tf.shape(decoder_train_targets))
 
             eos_multiplication_mask = tf.one_hot(self.decoder_train_length - 1,
                                                         decoder_train_targets_seq_len,
@@ -140,8 +142,6 @@ class BaselineModel():
                                                         decoder_train_targets_seq_len,
                                                         on_value=self.EOS, off_value=0,
                                                         dtype=tf.int32)
-            eos_multiplication_mask = tf.transpose(eos_multiplication_mask, [1, 0])
-            eos_addition_mask = tf.transpose(eos_addition_mask, [1, 0])
 
             # hacky way using one_hot to put EOS symbol at the end of target sequence
             decoder_train_targets = tf.add(
@@ -180,7 +180,7 @@ class BaselineModel():
                 tf.nn.dynamic_rnn(cell=self.encoder_cell,
                                   inputs=self.encoder_inputs_embedded,
                                   sequence_length=self.encoder_inputs_length,
-                                  time_major=True,
+                                  time_major=False,
                                   dtype=tf.float32)
                 )
 
@@ -195,7 +195,7 @@ class BaselineModel():
                                                 cell_bw=self.encoder_cell,
                                                 inputs=self.encoder_inputs_embedded,
                                                 sequence_length=self.encoder_inputs_length,
-                                                time_major=True,
+                                                time_major=False,
                                                 dtype=tf.float32)
                 )
 
@@ -253,22 +253,23 @@ class BaselineModel():
             scope.reuse_variables()
 
             ## Validation
-            decoder_validation_outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
+            decoder_validation_outputs, _ = tf.contrib.seq2seq.dynamic_decode(
                 decoder=self.decoder_train,
-                output_time_major=True,
+                output_time_major=False,
                 impute_finished=True,
                 maximum_iterations=None, # 
                 scope=scope)    
 
-            self.decoder_logits_validation = output_fn(decoder_validation_outputs.rnn_output)
-
+            self.decoder_logits_validation = decoder_validation_outputs.rnn_output
+            
+    
     def _init_inference_decoder(self):
         with tf.variable_scope(self.decoder_scope_name) as scope:
-            def output_fn(outputs):
-                return tf.contrib.layers.fully_connected(inputs=outputs,
-                                                         num_outputs=self.vocab_size,
-                                                         activation_fn=None, ## linear
-                                                         scope=scope)
+            dense_layer = Dense(conf.vocabulary_size,
+                                kernel_initializer = tf.truncated_normal_initializer(  
+                                mean=0.0, 
+                                stddev=0.1))
+
             inferenceHelper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
                     embedding=self.embedding_matrix,
                     start_tokens=tf.tile([START_TOKEN_INDEX], [self.batch_size]),

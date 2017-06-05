@@ -251,7 +251,7 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
         encoder_batch = [sentence + ([PAD_TOKEN_INDEX] * (max_len_enc - encoder_sequence_lengths[i]))
                          for i, sentence
                          in enumerate(enc_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
-        encoder_batch = np.array(encoder_batch).transpose()
+        encoder_batch = np.array(encoder_batch)
         decoder_sequence_lengths = [len(sentence) 
                                     for sentence
                                     in dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size]]
@@ -259,7 +259,7 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
         decoder_batch = [sentence + ([PAD_TOKEN_INDEX] * (max_len_dec - decoder_sequence_lengths[i]))
                          for i, sentence
                          in enumerate(dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
-        decoder_batch = np.array(decoder_batch).transpose()
+        decoder_batch = np.array(decoder_batch)
         all_batches.append((encoder_batch, encoder_sequence_lengths, decoder_batch, decoder_sequence_lengths))
 
     if shuffle_batches:

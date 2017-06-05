@@ -12,7 +12,6 @@ from baseline import BaselineModel
 from data_utility import *
 
 from word2vec.load_embeddings import load_embedding
-from beamsearch.beamsearch import BeamsearchModel
 
 ###
 # Graph execution
@@ -40,7 +39,7 @@ def mainFunc(argv):
         elif opt in ("-n", "--num_cores"):
             num_cores = int(arg)
         elif opt in ("-x", "--experiment"):
-            if arg in ("baseline", "attention", "beamsearch"):
+            if arg in ("baseline", "attention"):
                 experiment = arg
             else:
                 printUsage()
@@ -75,15 +74,6 @@ def mainFunc(argv):
                               dropout=conf.use_dropout,
                               num_layers=conf.num_layers,
                               is_training=True)
-    elif experiment == "beamsearch":
-        model = BeamsearchModel(vocab_size=conf.vocabulary_size,
-                              embedding_size=conf.word_embedding_size,
-                              bidirectional=conf.bidirectional_encoder,
-                              attention=False,
-                              dropout=conf.use_dropout,
-                              num_layers=conf.num_layers,
-                              is_training=True)
-
     assert model != None
     enc_inputs, dec_inputs, word_2_index, index_2_word = get_data_by_type('train')
     # Materialize validation data
