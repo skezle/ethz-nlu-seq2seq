@@ -103,7 +103,7 @@ def mainFunc(argv):
 
                 feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths)
 
-                predictions = sess.run(model.decoder_prediction_inference, feed_dict).T
+                predictions = sess.run(model.decoder_prediction_inference, feed_dict)
                 truncated_predictions = truncate_after_eos(predictions)
                 out.writelines(map(maptoword, truncated_predictions))
 
