@@ -86,14 +86,13 @@ def mainFunc(argv):
                               dropout=conf.use_dropout,
                               num_layers=conf.num_layers)
     elif experiment == "beamsearch":
-        model = BeamsearchModel(encoder_cell=conf.encoder_cell,
-                              decoder_cell=conf.decoder_cell,
-                              vocab_size=conf.vocabulary_size,
+        model = BeamsearchModel(vocab_size=conf.vocabulary_size,
                               embedding_size=conf.word_embedding_size,
                               bidirectional=conf.bidirectional_encoder,
                               attention=False,
                               dropout=conf.use_dropout,
-                              num_layers=conf.num_layers)
+                              num_layers=conf.num_layers,
+                              is_training=False)
 
     assert model != None
     # Materialize validation data
@@ -130,9 +129,10 @@ def mainFunc(argv):
                         total=ceil(len(validation_enc_inputs) / conf.batch_size)):
 
                     feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths)
-                    final_outputs, final_state, final_sequence_lengths = sess.run(model.decoder_prediction_inference, feed_dict).T
+                    final_outputs, final_sequence_lengths = sess.run([model.decoder_inference_outputs, model.decoder_prediction_lengths], feed_dict).T
 
                     print(final_outputs)
+                    print(final_sequence_lengths)
                         
 
 
