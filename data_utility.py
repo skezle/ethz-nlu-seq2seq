@@ -281,7 +281,7 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
                                     for sentence
                                     in dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size]]
         max_len_dec = max(decoder_sequence_lengths)
-        decoder_batch = [list(reversed(sentence)) + ([PAD_TOKEN_INDEX] * (max_len_dec - decoder_sequence_lengths[i]))
+        decoder_batch = [sentence + ([PAD_TOKEN_INDEX] * (max_len_dec - decoder_sequence_lengths[i]))
                          for i, sentence
                          in enumerate(dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
         decoder_batch = np.array(decoder_batch)
