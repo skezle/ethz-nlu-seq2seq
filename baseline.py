@@ -72,19 +72,30 @@ class BaselineModel():
 
     def _init_cells(self):
         with tf.variable_scope(self.encoder_scope_name) as scope:
-            cell = tf.contrib.rnn.LSTMCell(conf.encoder_cell_size)
-            if self.dropout:
-                cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=self.dropout_keep_prob)
-            if self.num_layers != 1:
-                tf.contrib.rnn.MultiRNNCell([cell for _ in range(self.num_layers)]) # The cells in the different layers share the same weights
+            cell = None
+            if self.dropout and self.num_layers != 1:
+                cell = tf.contrib.rnn.MultiRNNCell(
+                    [tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(conf.encoder_cell_size), input_keep_prob=self.dropout_keep_prob) for _ in range(self.num_layers)])
+            elif self.dropout:
+                cell = tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(conf.encoder_cell_size), input_keep_prob=self.dropout_keep_prob)
+            elif self.num_layers != 1:
+                cell = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.LSTMCell(conf.encoder_cell_size) for _ in range(self.num_layers)])
+            else:
+                cell = tf.contrib.rnn.LSTMCell(conf.encoder_cell_size)
+
             self.encoder_cell = cell
 
         with tf.variable_scope(self.decoder_scope_name) as scope:
-            cell = tf.contrib.rnn.LSTMCell(conf.decoder_cell_size)
-            if self.dropout:
-                cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=self.dropout_keep_prob)
-            if self.num_layers != 1:
-                tf.contrib.rnn.MultiRNNCell([cell for _ in range(self.num_layers)]) # The cells in the different layers share the same weights
+            cell = None
+            if self.dropout and self.num_layers != 1:
+                cell = tf.contrib.rnn.MultiRNNCell(
+                    [tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(conf.decoder_cell_size), input_keep_prob=self.dropout_keep_prob) for _ in range(self.num_layers)])
+            elif self.dropout:
+                cell = tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(conf.decoder_cell_size), input_keep_prob=self.dropout_keep_prob)
+            elif self.num_layers != 1:
+                cell = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.LSTMCell(conf.decoder_cell_size) for _ in range(self.num_layers)])
+            else:
+                cell = tf.contrib.rnn.LSTMCell(conf.decoder_cell_size)
             self.decoder_cell = cell
 
     def _init_placeholders(self):
