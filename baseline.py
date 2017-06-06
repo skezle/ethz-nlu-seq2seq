@@ -6,8 +6,6 @@ import math
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.seq2seq as seq2seq
-from custom_decoder import custom_dynamic_decode
-from tensorflow.contrib.layers import safe_embedding_lookup_sparse as embedding_lookup_unique
 from tensorflow.contrib.rnn import LSTMCell, LSTMStateTuple, GRUCell
 from tensorflow.python.layers.core import Dense
 from tensorflow.python.ops.rnn_cell_impl import _zero_state_tensors
