@@ -35,7 +35,7 @@ def construct_lm_logits(sess, model):
         assert decoder_logits.shape == (len(dummy_batch_lens), conf.max_decoder_inference_length, conf.vocabulary_size)
 
         all_logits.append(decoder_logits)
-
-    assert all_logits.shape == (max_input_len + 1, conf.max_decoder_inference_length, conf.vocabulary_size)
+    all_logits = np.vstack(all_logits)
+    assert all_logits.shape == (max_input_len, conf.max_decoder_inference_length, conf.vocabulary_size)
 
     return all_logits
