@@ -28,3 +28,4 @@ class Config:
     attention_size = 512
 
     antilm_penalization_weight = 0.6
+    antilm_max_penalization_len = 5

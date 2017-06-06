@@ -113,10 +113,10 @@ class BaselineModel():
             name='decoder_targets_length',
         )
 
-        self.lm_logits = tf.placeholder(
+        self.lm_softmax = tf.placeholder(
             shape=(None, None, None),
             dtype=tf.float32,
-            name='lm_logits',
+            name='lm_softmax',
         )
 
         self.dropout_keep_prob = tf.placeholder(tf.float32)
@@ -327,9 +327,10 @@ class BaselineModel():
                 decoder=self.decoder_dummy_inference,
                 output_time_major=False,
                 impute_finished=False,
-                maximum_iterations=conf.max_decoder_inference_length,
+                maximum_iterations=conf.antilm_max_penalization_len,
                 scope=scope)
-            self.dummy_decoder_logits = decoder_dummy_prediction_outputs.rnn_output
+            dummy_decoder_logits = decoder_dummy_prediction_outputs.rnn_output
+            self.dummy_decoder_softmax = tf.softmax(dummy_decoder_logits)
             
     def _init_optimizer(self):
         logits = tf.transpose(self.decoder_logits_train, [1, 0, 2])
