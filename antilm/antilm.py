@@ -3,7 +3,7 @@ import numpy as np
 from tqdm import tqdm
 from math import ceil
 from config import Config as conf
-from data_utility import START_TOKEN_INDEX
+from data_utility import PAD_TOKEN_INDEX
 
 def batch_dummy_paddings(paddings, lengths):
     batch_size = conf.batch_size
@@ -19,7 +19,7 @@ def batch_dummy_paddings(paddings, lengths):
 def construct_lm_logits(sess, model):
     # construct paddng lists up to input max len
     max_input_len = conf.input_sentence_max_length + 1 # Incremented by 1 because of the final EOS
-    paddings = np.full((max_input_len, conf.max_decoder_inference_length), START_TOKEN_INDEX, dtype=np.int32)
+    paddings = np.full((max_input_len, max_input_len), PAD_TOKEN_INDEX, dtype=np.int32)
     padding_lengths = list(range(1, max_input_len + 1))
 
     # loop through all the batches
