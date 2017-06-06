@@ -1,0 +1,10 @@
+RUNNING PYTHON SCRIPT IN EULER: bsub -N -n 4 -W 15:00 "python main.py -n 4 -x baseline -t run1"
+
+ADDING TO BASH PROFILE:
+
+export PATH
+export PYTHONPATH=$HOME/python/lib64/python3.6/site-packages:$PYTHONPATH
+module load new gcc/4.8.2 python/3.6.0
+
+
+HOW TO INSTALL SPECIFIC PACKAGES IN PYTHON: https://jo-m.ch/eth-supercomputing/

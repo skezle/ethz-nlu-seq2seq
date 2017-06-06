@@ -1,6 +1,7 @@
 import pickle
 import os.path
 import operator
+import cornell_loading
 import numpy as np
 from math import ceil
 from config import Config as conf
@@ -16,9 +17,9 @@ END_TOKEN_INDEX = 1
 UNK_TOKEN_INDEX = 2
 PAD_TOKEN_INDEX = 3
 TRAINING_FILEPATH = 'data/Training_Shuffled_Dataset.txt'
-TRAINING_TUPLES_FILEPATH = 'data/Training_Shuffled_Dataset_tuples.txt'
+TRAINING_TUPLES_FILEPATH = 'Training_Shuffled_Dataset_tuples.txt'
 VALIDATION_FILEPATH = 'data/Validation_Shuffled_Dataset.txt'
-VALIDATION_TUPLES_FILEPATH = 'data/Validation_Shuffled_Dataset_tuples.txt'
+VALIDATION_TUPLES_FILEPATH = 'Validation_Shuffled_Dataset_tuples.txt'
 VOCABULARY_FILEPATH = 'pickled_vars/vocabulary.p'
 W2I_FILEPATH = 'pickled_vars/word_2_index.p'
 I2W_FILEPATH = 'pickled_vars/index_2_index.p'
@@ -32,20 +33,52 @@ DECODER_INPUT_FILEPATH = 'pickled_vars/decoder_inputs.p'
 # If output_filepath is None, then the output tuples will not be written to disk,
 # but returned
 ###
-def triples_to_tuples(input_filepath, output_filepath=None):
 
-    tuples = []
-    with open(input_filepath, 'r') as inp:
-        for line in inp:
-            triples = line.strip().split('\t')
-            tuples.append("{}\t{}\n".format(triples[0], triples[1]))
-            tuples.append("{}\t{}\n".format(triples[1], triples[2]))
-    
-    if output_filepath is None:
-        return tuples
-    else:
-        with open(output_filepath, 'w') as out:
-            out.writelines(tuples)
+def triples_to_tuples(input_filepath, output_filepath):
+    print("Converting triples from {} to tuples..".format(input_filepath))
+    f = open(input_filepath, 'r')
+    f1 = open(output_filepath, 'w')
+
+    for line in f:
+        triples = line.strip().split('\t')
+        f1.write("{}\t{}\n".format(triples[0], triples[1]))
+        f1.write("{}\t{}\n".format(triples[1], triples[2]))
+
+    f.close()
+    f1.close()
+    if input_filepath == TRAINING_FILEPATH and conf.use_CORNELL_for_training:
+        merge(output_filepath, conf.CORNELL_TUPLES_PATH, conf.both_datasets_tuples_filepath)
+
+
+def merge(base_dataset_tuples_filepath, cornell_tuples_filepath, output_filepath):
+    if conf.use_CORNELL_for_training:
+        numlines = 0
+        f = open(base_dataset_tuples_filepath, 'r')
+        f1 = open(output_filepath, 'w')
+        print("Merging base dataset with Cornell: loading base dataset..")
+        for line in f:
+            f1.write(line)
+            numlines = numlines + 1
+        f.close()
+        print("\tNumber of tuples loaded from base dataset: {}".format(numlines))
+        print("Merging base dataset with Cornell: loading Cornell dataset..")
+        if not os.path.isfile(cornell_tuples_filepath):
+            cornell_loading.create_Cornell_tuples(conf.CORNELL_lines_path, conf.CORNELL_conversations_path, conf.CORNELL_TUPLES_PATH)
+        f2 = open(cornell_tuples_filepath, 'r')
+        for line in f2:
+            couples = line.strip().split('\t')
+            if len(couples) > 2:
+                k = 1
+                while len(couples[k]) <= 0 and k <= len(couples):
+                    k = k + 1
+                f1.write("{}\t{}\n".format(couples[0], couples[k]))
+                numlines = numlines + 1
+            else:
+                f1.write(line)
+                numlines = numlines + 1
+        f2.close()
+        f1.close()
+        print("\tTotal number of dumped lines: {}".format(numlines))
 
 ###
 # Counts unique_tokens. No shit Sherlock...
@@ -72,12 +105,17 @@ def get_vocabulary():
 # Gets or creates a vocabulary based on vocabulary size
 ###
 def get_or_create_vocabulary():
-
+    print("Getting vocabulary..")
     try:
         vocabulary = get_vocabulary()
     except:
+        print("Building vocabulary..")
         vocabulary = {}
-        train_file = open(TRAINING_TUPLES_FILEPATH)
+
+        if conf.use_CORNELL_for_training:
+            train_file = open(conf.both_datasets_tuples_filepath)
+        else:
+            train_file = open(TRAINING_TUPLES_FILEPATH)
 
         for line in train_file:
             conversation = line.strip().split()
@@ -85,6 +123,7 @@ def get_or_create_vocabulary():
                 vocabulary[word] = vocabulary.get(word, 0) + 1
 
         sorted_vocab = sorted(vocabulary.items(), key=operator.itemgetter(1), reverse=True)
+        print("Total length of vocabulary: {}".format(len(sorted_vocab)))
 
         sorted_vocab = sorted_vocab[:conf.vocabulary_size-4]
         vocabulary = dict(sorted_vocab)
@@ -94,15 +133,9 @@ def get_or_create_vocabulary():
         vocabulary[UNK_TOKEN] = 1
         vocabulary[PAD_TOKEN] = 1
 
-        if not os.path.exists(os.path.dirname(VOCABULARY_FILEPATH)):
-            try:
-                os.makedirs(os.path.dirname(VOCABULARY_FILEPATH ))
-            except OSError as exc: # Guard against race condition
-                if exc.errno != errno.EEXIST:
-                    raise
-
         pickle.dump(vocabulary, open(VOCABULARY_FILEPATH, 'wb'))
         train_file.close()
+        print("Vocabulary pickled!")
     return vocabulary
 
 ###
@@ -116,16 +149,19 @@ def get_w2i_i2w_dicts():
 # Creates word_2_index and index_2_word dictionaries and returns them
 ###
 def get_or_create_dicts_from_train_data():
-
+    print("Getting word2index and index2word..")
     try:
         return get_w2i_i2w_dicts()
     except:
+        print("Building word2index and index2word")
         filename = TRAINING_TUPLES_FILEPATH
-
         if not os.path.isfile(filename):
             triples_to_tuples(TRAINING_FILEPATH, filename)
 
-        f = open(filename, 'r')
+        if conf.use_CORNELL_for_training:
+            f = open(conf.both_datasets_tuples_filepath, 'r')
+        else:
+            f = open(filename, 'r')
 
         word_2_index = {START_TOKEN: START_TOKEN_INDEX, END_TOKEN: END_TOKEN_INDEX, UNK_TOKEN: UNK_TOKEN_INDEX, PAD_TOKEN: PAD_TOKEN_INDEX}
         index_2_word = {START_TOKEN_INDEX: START_TOKEN, END_TOKEN_INDEX: END_TOKEN, UNK_TOKEN_INDEX: UNK_TOKEN, PAD_TOKEN_INDEX: PAD_TOKEN}
@@ -141,21 +177,9 @@ def get_or_create_dicts_from_train_data():
                     index_2_word[index] = word
                     index += 1
 
-        if not os.path.exists(os.path.dirname(W2I_FILEPATH)):
-            try:
-                os.makedirs(os.path.dirname(W2I_FILEPATH))
-            except OSError as exc: # Guard against race condition
-                if exc.errno != errno.EEXIST:
-                    raise
-        if not os.path.exists(os.path.dirname(I2W_FILEPATH)):
-            try:
-                os.makedirs(os.path.dirname(I2W_FILEPATH))
-            except OSError as exc: # Guard against race condition
-                if exc.errno != errno.EEXIST:
-                    raise
-
         pickle.dump(word_2_index, open(W2I_FILEPATH, 'wb'))
         pickle.dump(index_2_word, open(I2W_FILEPATH, 'wb'))
+        print("word2index and index2word pickled!")
 
     return word_2_index, index_2_word
 
@@ -181,7 +205,7 @@ def apply_w2i_to_corpus_tuples(interactionStringList, vocabulary, w2i_dict):
             return list(map(apply_w2i_to_word, sentence_string.split()))
 
 
-        tuples =map(lambda line: line.strip().split('\t'), interactionStringList)
+        tuples = map(lambda line: line.strip().split('\t'), interactionStringList)
         input_sentences, answer_sentences = zip(*tuples)
         encoder_inputs = list(map(apply_w2i_to_sentence, input_sentences))
         decoder_inputs = list(map(apply_w2i_to_sentence, answer_sentences))
@@ -192,19 +216,14 @@ def apply_w2i_to_corpus_tuples(interactionStringList, vocabulary, w2i_dict):
 # Returns data by type (train, eval), together with the word_2_index and index_2_word dicts
 ###
 def get_data_by_type(t):
-
-    if t=='train':
+    if t == 'train':
         filename = TRAINING_TUPLES_FILEPATH
-
-        if not os.path.isfile(filename):
-            triples_to_tuples(TRAINING_FILEPATH, filename)
-    elif t=='eval':
-
+        if conf.use_CORNELL_for_training:
+            filename = conf.both_datasets_tuples_filepath
+    elif t == 'eval':
         filename = VALIDATION_TUPLES_FILEPATH
-
         if not os.path.isfile(filename):
             triples_to_tuples(VALIDATION_FILEPATH, filename)
- 
     else:
         print('Type must be "train" or "eval".')
         return
@@ -213,13 +232,19 @@ def get_data_by_type(t):
     vocabulary = get_or_create_vocabulary()
 
     try:
+        print("Getting encoder and decoder inputs..")
         encoder_inputs = pickle.load(open(ENCODER_INPUT_FILEPATH, 'rb'))
         decoder_inputs = pickle.load(open(DECODER_INPUT_FILEPATH, 'rb'))
     except:
+        print("Building encoder and decoder inputs..")
 
         with open(filename, 'r') as tuples_input:
             lines = tuples_input.readlines()
             encoder_inputs, decoder_inputs = apply_w2i_to_corpus_tuples(lines, vocabulary, word_2_index)
+
+        # pickle.dump(encoder_inputs, open(ENCODER_INPUT_FILEPATH, 'wb'))
+        # pickle.dump(decoder_inputs, open(DECODER_INPUT_FILEPATH, 'wb'))
+        # print("encoder and decoder inputs pickled!")
 
     return encoder_inputs, decoder_inputs, word_2_index, index_2_word
 
@@ -271,11 +296,14 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
 def copy_config(to):
     copyfile("./config.py", os.path.join(to, "config.py"))
 
+
 def truncate_sentence(sent):
     idxArr = np.where(sent == END_TOKEN_INDEX)[0]
     if idxArr.size == 0:
         return sent
     else:
         return sent[:idxArr[0]+1]
+
+
 def truncate_after_eos(sentence_list):
     return list(map(lambda sent: truncate_sentence(sent), sentence_list))

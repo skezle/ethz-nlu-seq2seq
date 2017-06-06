@@ -75,8 +75,14 @@ def mainFunc(argv):
                               num_layers=conf.num_layers,
                               is_training=True)
     assert model != None
+    print("=== GETTING DATA BY TYPE = TRAIN ===")
     enc_inputs, dec_inputs, word_2_index, index_2_word = get_data_by_type('train')
+    print("***********")
+    print("Encoder inputs length {}".format(len(enc_inputs)))
+    print("Decoder inputs length {}".format(len(dec_inputs)))
+    print("***********")
     # Materialize validation data
+    print("=== GETTING DATA BY TYPE = EVAL ===")
     validation_enc_inputs, validation_dec_inputs, _, _ = get_data_by_type('eval')
     validation_data = list(bucket_by_sequence_length(validation_enc_inputs, validation_dec_inputs, conf.batch_size, filter_long_sent=False))
     
@@ -101,12 +107,13 @@ def mainFunc(argv):
         if conf.use_word2vec:
             print("Using word2vec embeddings")
             if not os.path.isfile(conf.word2vec_path):
+                train_sentences = TRAINING_FILEPATH
                 train_embeddings(save_to_path=conf.word2vec_path,
-                                 embedding_size=conf.word_embedding_size,
-                                 minimal_frequency=conf.word2vec_min_word_freq,
-                                 train_path=TRAINING_FILEPATH,
-                                 validation_path=VALIDATION_FILEPATH,
-                                 num_workers=conf.word2vec_workers_count)
+                                  embedding_size=conf.word_embedding_size,
+                                  minimal_frequency=conf.word2vec_min_word_freq,
+                                  train_tuples_path=train_sentences,
+                                  validation_path=None,
+                                  num_workers=conf.word2vec_workers_count)
             print("Loading word2vec embeddings")
             load_embedding(sess,
                            get_or_create_vocabulary(),
