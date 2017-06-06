@@ -39,3 +39,8 @@ def construct_lm_logits(sess, model):
     assert all_logits.shape == (max_input_len, conf.max_decoder_inference_length, conf.vocabulary_size)
 
     return all_logits
+
+def construct_lm_logits_batch(all_logits, batch_sequence_lengths):
+    idx_arr = [x - 1 for x in batch_sequence_lengths] # Indexing starts at zero
+    batch_logits = all_logits[idx_arr]
+    return batch_logits
