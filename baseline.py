@@ -329,13 +329,13 @@ class BaselineModel():
         self.summary_op = tf.summary.merge([loss])
         self.validation_summary_op = tf.summary.merge([vali_loss])
 
-    def make_train_inputs(self, input_seq, input_seq_len, target_seq, target_seq_len):
+    def make_train_inputs(self, input_seq, input_seq_len, target_seq, target_seq_len, keep_prob = conf.dropout_keep_prob):
         return {
             self.encoder_inputs: input_seq,
             self.encoder_inputs_length: input_seq_len,
             self.decoder_targets: target_seq,
             self.decoder_targets_length: target_seq_len,
-            self.dropout_keep_prob: conf.dropout_keep_prob,
+            self.dropout_keep_prob: keep_prob,
         }
 
     def make_inference_inputs(self, input_seq, input_seq_len):

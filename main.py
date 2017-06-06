@@ -133,7 +133,7 @@ def mainFunc(argv):
                 if global_step % conf.validation_summary_frequency == 0:#
                     # Randomly choose a batch from the validation dataset and use it for loss calculation
                     vali_data_batch, vali_data_sentence_lengths, vali_label_batch, vali_label_sentence_lengths = choice(validation_data)
-                    validation_feed_dict = model.make_train_inputs(vali_data_batch, vali_data_sentence_lengths, vali_label_batch, vali_label_sentence_lengths)
+                    validation_feed_dict = model.make_train_inputs(vali_data_batch, vali_data_sentence_lengths, vali_label_batch, vali_label_sentence_lengths, keep_prob = 1.0)
                     validation_summary = sess.run(model.validation_summary_op, validation_feed_dict)
                     validation_writer.add_summary(validation_summary, global_step)
 
