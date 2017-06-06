@@ -76,7 +76,7 @@ class BaselineModel():
             if self.dropout:
                 cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=self.dropout_keep_prob)
             if self.num_layers != 1:
-                tf.contrib.rnn.MultiRNNCell([cell for _ in xrange(self.num_layers)]) # The cells in the different layers share the same weights
+                tf.contrib.rnn.MultiRNNCell([cell for _ in range(self.num_layers)]) # The cells in the different layers share the same weights
             self.encoder_cell = cell
 
         with tf.variable_scope(self.decoder_scope_name) as scope:
@@ -84,7 +84,7 @@ class BaselineModel():
             if self.dropout:
                 cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=self.dropout_keep_prob)
             if self.num_layers != 1:
-                tf.contrib.rnn.MultiRNNCell([cell for _ in xrange(self.num_layers)]) # The cells in the different layers share the same weights
+                tf.contrib.rnn.MultiRNNCell([cell for _ in range(self.num_layers)]) # The cells in the different layers share the same weights
             self.decoder_cell = cell
 
     def _init_placeholders(self):
