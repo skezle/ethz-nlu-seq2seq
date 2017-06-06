@@ -25,7 +25,7 @@ class BaselineModel():
                  num_layers=1,
                  is_training=True):
         self.bidirectional = bidirectional
-        self.encoder_scope_name = "Encoder" if bidirectional else "BidirectionalEncoder"
+        self.encoder_scope_name = "Encoder" if not bidirectional else "BidirectionalEncoder"
         self.decoder_scope_name = "Decoder"
         self.attention = attention ## used when initialising the decoder
         self.dropout = dropout
