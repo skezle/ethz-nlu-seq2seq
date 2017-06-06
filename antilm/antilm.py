@@ -28,8 +28,8 @@ def construct_lm_logits(config, model):
                         batch_dummy_paddings(paddings, padding_lengths), total=ceil(max_input_len / conf.batch_size)):
 
             feed_dict = model.make_inference_inputs(dummy_batch, dummy_batch_lens)
-            decoder_logits = sess.run(model.dummy_decoder_logits, feed_dict)
-            
+            decoder_logits = sess.run(model.decoder_dummy_prediction_logits, feed_dict)
+
             assert decoder_logits.shape == (len(dummy_batch_lens), conf.max_decoder_inference_length, conf.vocabulary_size)
 
             all_logits.append(decoder_logits)

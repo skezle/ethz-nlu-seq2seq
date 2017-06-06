@@ -104,7 +104,7 @@ def mainFunc(argv):
                     bucket_by_sequence_length(validation_enc_inputs, _, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False),
                     total=ceil(len(validation_enc_inputs) / conf.batch_size)):
 
-                feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths)
+                feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths, lm_logits)
 
                 predictions = sess.run(model.decoder_prediction_inference, feed_dict)
                 truncated_predictions = truncate_after_eos(predictions)

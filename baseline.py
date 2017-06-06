@@ -68,6 +68,7 @@ class BaselineModel():
             self._init_summary()
         else:
             self._init_inference_decoder()
+            self._init_dummy_inference_decoder()
 
         
 
@@ -111,6 +112,12 @@ class BaselineModel():
             shape=(None,),
             dtype=tf.int32,
             name='decoder_targets_length',
+        )
+
+        self.lm_logits = tf.placeholder(
+            shape=(None, None),
+            dtype=tf.int32,
+            name='lm_logits',
         )
 
         self.dropout_keep_prob = tf.placeholder(tf.float32)
@@ -282,7 +289,8 @@ class BaselineModel():
             inferenceHelper = GreedyAntiLMHelper(
                     embedding=self.embedding_matrix,
                     start_tokens=tf.tile([START_TOKEN_INDEX], [self.batch_size]),
-                    end_token=END_TOKEN_INDEX)
+                    end_token=END_TOKEN_INDEX,
+                    lm_logits=self.lm_logits)
 
             self.decoder_inference = tf.contrib.seq2seq.BasicDecoder(
                     cell=self.decoder_cell,
@@ -298,7 +306,29 @@ class BaselineModel():
                 maximum_iterations=conf.max_decoder_inference_length,
                 scope=scope)
     
-            self.decoder_prediction_inference = tf.argmax(decoder_prediction_outputs, axis=-1, name='decoder_prediction_inference')
+            self.decoder_prediction_inference = tf.argmax(decoder_prediction_outputs.rnn_output, axis=-1, name='decoder_prediction_inference')
+            
+    def _init_dummy_inference_decoder(self):
+        with tf.variable_scope(self.decoder_scope_name) as scope:
+            inferenceHelper = GreedyEmbeddingHeler(
+                    embedding=self.embedding_matrix,
+                    start_tokens=tf.tile([START_TOKEN_INDEX], [self.batch_size]),
+                    end_token=END_TOKEN_INDEX)
+
+            self.decoder_dummy_inference = tf.contrib.seq2seq.BasicDecoder(
+                    cell=self.decoder_cell,
+                    helper=inferenceHelper,
+                    initial_state=self.decoder_init_state,
+                    output_layer=self.dense_layer)
+
+            ## Prediction
+            decoder_dummy_prediction_outputs, _ = tf.contrib.seq2seq.dynamic_decode(
+                decoder=self.decoder_dummy_inference,
+                output_time_major=False,
+                impute_finished=False,
+                maximum_iterations=conf.max_decoder_inference_length,
+                scope=scope)
+            self.dummy_decoder_logits = decoder_dummy_prediction_outputs.rnn_output
             
     def _init_optimizer(self):
         logits = tf.transpose(self.decoder_logits_train, [1, 0, 2])
@@ -328,9 +358,13 @@ class BaselineModel():
             self.dropout_keep_prob: keep_prob,
         }
 
-    def make_inference_inputs(self, input_seq, input_seq_len):
-        return {
+    def make_inference_inputs(self, input_seq, input_seq_len, lm_logits = None):
+        dic = {
             self.encoder_inputs: input_seq,
             self.encoder_inputs_length: input_seq_len,
             self.dropout_keep_prob: 1,
         }
+        if lm_logits is not None:
+            dic[self.lm_logits] = lm_logits
+
+        return dic
