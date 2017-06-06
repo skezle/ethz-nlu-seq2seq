@@ -96,7 +96,7 @@ def mainFunc(argv):
         saver.restore(sess, checkpoint_filepath)
 
         print("Constructing language model")
-        lm_logits = compute_lm_logits()
+        lm_logits = construct_lm_logits(sess, model)
 
         print("Using network to predict sentences..")
         with open(output_filepath, 'w') as out:

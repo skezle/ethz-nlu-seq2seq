@@ -13,7 +13,6 @@ from tensorflow.python.layers.core import Dense
 from tensorflow.python.ops.rnn_cell_impl import _zero_state_tensors
 from data_utility import START_TOKEN_INDEX, END_TOKEN_INDEX, PAD_TOKEN_INDEX
 from config import Config as conf
-from antilm.GreedyAntiLMHelper import GreedyAntiLMHelper
 class BaselineModel():
     """Seq2Seq model using blocks from new `tf.contrib.seq2seq`."""
 
@@ -115,8 +114,8 @@ class BaselineModel():
         )
 
         self.lm_logits = tf.placeholder(
-            shape=(None, None),
-            dtype=tf.int32,
+            shape=(None, None, None),
+            dtype=tf.float32,
             name='lm_logits',
         )
 
@@ -286,11 +285,10 @@ class BaselineModel():
     
     def _init_inference_decoder(self):
         with tf.variable_scope(self.decoder_scope_name) as scope:
-            inferenceHelper = GreedyAntiLMHelper(
+            inferenceHelper = seq2seq.GreedyEmbeddingHelper(
                     embedding=self.embedding_matrix,
                     start_tokens=tf.tile([START_TOKEN_INDEX], [self.batch_size]),
-                    end_token=END_TOKEN_INDEX,
-                    lm_logits=self.lm_logits)
+                    end_token=END_TOKEN_INDEX)
 
             self.decoder_inference = tf.contrib.seq2seq.BasicDecoder(
                     cell=self.decoder_cell,
@@ -306,11 +304,13 @@ class BaselineModel():
                 maximum_iterations=conf.max_decoder_inference_length,
                 scope=scope)
     
-            self.decoder_prediction_inference = tf.argmax(decoder_prediction_outputs.rnn_output, axis=-1, name='decoder_prediction_inference')
+            orig_logits = decoder_prediction_outputs.rnn_output
+            penalized_logits = tf.subtract(orig_logits, tf.scalar_mul(conf.antilm_penalization_weight, self.lm_logits))
+            self.decoder_prediction_inference = tf.argmax(penalized_logits, axis=-1, name='decoder_prediction_inference')
             
     def _init_dummy_inference_decoder(self):
-        with tf.variable_scope(self.decoder_scope_name) as scope:
-            inferenceHelper = GreedyEmbeddingHeler(
+        with tf.variable_scope(self.decoder_scope_name, reuse=True) as scope:
+            inferenceHelper = seq2seq.GreedyEmbeddingHelper(
                     embedding=self.embedding_matrix,
                     start_tokens=tf.tile([START_TOKEN_INDEX], [self.batch_size]),
                     end_token=END_TOKEN_INDEX)

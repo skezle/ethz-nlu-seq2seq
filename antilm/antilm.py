@@ -1,10 +1,13 @@
 import tensorflow as tf
+import numpy as np
+from tqdm import tqdm
+from math import ceil
 from config import Config as conf
 from data_utility import START_TOKEN_INDEX
 
 def batch_dummy_paddings(paddings, lengths):
-
-    num_batches = ceil(len(enc_inputs) / conf.batch_size)    
+    batch_size = conf.batch_size
+    num_batches = ceil(len(paddings) / batch_size)    
 
     for batch_num in range(num_batches):
 
@@ -13,7 +16,7 @@ def batch_dummy_paddings(paddings, lengths):
         
         yield encoder_batch, encoder_batch_lens
 
-def construct_lm_logits(config, model):
+def construct_lm_logits(sess, model):
     # construct paddng lists up to input max len
     max_input_len = conf.input_sentence_max_length + 1 # Incremented by 1 because of the final EOS
     paddings = np.full((max_input_len, conf.max_decoder_inference_length), START_TOKEN_INDEX, dtype=np.int32)
@@ -21,18 +24,17 @@ def construct_lm_logits(config, model):
 
     # loop through all the batches
     print("Constructing dummy language model")
-    with tf.Session(config=configProto) as sess:
 
-        all_logits = []
-        for dummy_batch, dummy_batch_lens in tqdm(
-                        batch_dummy_paddings(paddings, padding_lengths), total=ceil(max_input_len / conf.batch_size)):
+    all_logits = []
+    for dummy_batch, dummy_batch_lens in tqdm(
+                    batch_dummy_paddings(paddings, padding_lengths), total=ceil(max_input_len / conf.batch_size)):
 
-            feed_dict = model.make_inference_inputs(dummy_batch, dummy_batch_lens)
-            decoder_logits = sess.run(model.decoder_dummy_prediction_logits, feed_dict)
+        feed_dict = model.make_inference_inputs(dummy_batch, dummy_batch_lens)
+        decoder_logits = sess.run(model.dummy_decoder_logits, feed_dict)
 
-            assert decoder_logits.shape == (len(dummy_batch_lens), conf.max_decoder_inference_length, conf.vocabulary_size)
+        assert decoder_logits.shape == (len(dummy_batch_lens), conf.max_decoder_inference_length, conf.vocabulary_size)
 
-            all_logits.append(decoder_logits)
+        all_logits.append(decoder_logits)
 
     assert all_logits.shape == (max_input_len + 1, conf.max_decoder_inference_length, conf.vocabulary_size)
 
