@@ -87,7 +87,8 @@ def mainFunc(argv):
     assert model != None
     # Materialize validation data
     validation_enc_inputs, _, word_2_index, index_2_word = get_data_by_type('eval')
-    
+
+    validation_input_lengths = set(map(lambda x: len(x), validation_enc_inputs))
     with tf.Session(config=configProto) as sess:
         global_step = 1
 
@@ -96,7 +97,7 @@ def mainFunc(argv):
         saver.restore(sess, checkpoint_filepath)
 
         print("Constructing language model")
-        lm_logits = construct_lm_softmax(sess, model)
+        lm_softmax_dict = construct_lm_softmax(sess, model, validation_input_lengths)
 
         print("Using network to predict sentences..")
         with open(output_filepath, 'w') as out:
@@ -104,8 +105,8 @@ def mainFunc(argv):
                     bucket_by_sequence_length(validation_enc_inputs, _, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False),
                     total=ceil(len(validation_enc_inputs) / conf.batch_size)):
 
-                lm_logits_batch = construct_lm_softmax_batch(lm_logits, data_sentence_lengths)
-                feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths, lm_logits_batch)
+                lm_softmax_batch = construct_lm_softmax_batch(lm_softmax_dict, data_sentence_lengths)
+                feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths, lm_softmax_batch)
 
                 predictions = sess.run(model.decoder_prediction_inference, feed_dict)
                 truncated_predictions = truncate_after_eos(predictions)
