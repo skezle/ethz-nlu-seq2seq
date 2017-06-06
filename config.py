@@ -29,3 +29,5 @@ class Config:
 
     antilm_penalization_weight = 0.6
     antilm_max_penalization_len = 5
+
+    scheduled_sampling_prob = 0.75

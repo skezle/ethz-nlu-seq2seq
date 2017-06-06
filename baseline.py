@@ -246,14 +246,19 @@ class BaselineModel():
     def _init_train_decoder(self):
         with tf.variable_scope(self.decoder_scope_name) as scope:
             ## Training
-            trainingHelper = tf.contrib.seq2seq.TrainingHelper(
+            scheduledTrainingHelper = tf.contrib.seq2seq.ScheduledEmbeddingTrainingHelper(
                             inputs=self.decoder_train_inputs_embedded,
                             sequence_length=self.decoder_train_length,
-                            time_major=False)
-
+                            embedding=self.embedding_matrix,
+                            sampling_probability=conf.scheduled_sampling_prob,
+                            time_major=False,
+                            seed=None,
+                            scheduling_seed=None,
+                            name="ScheduledEmbeddingTrainingHelper")
+            
             self.decoder_train = tf.contrib.seq2seq.BasicDecoder(
                 cell=self.decoder_cell,
-                helper=trainingHelper,
+                helper=scheduledTrainingHelper,
                 initial_state=self.decoder_init_state,
                 output_layer=self.dense_layer)
 
