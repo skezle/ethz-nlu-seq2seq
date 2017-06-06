@@ -13,6 +13,7 @@ from tensorflow.python.layers.core import Dense
 from tensorflow.python.ops.rnn_cell_impl import _zero_state_tensors
 from data_utility import START_TOKEN_INDEX, END_TOKEN_INDEX, PAD_TOKEN_INDEX
 from config import Config as conf
+from antilm.GreedyAntiLMHelper import GreedyAntiLMHelper
 class BaselineModel():
     """Seq2Seq model using blocks from new `tf.contrib.seq2seq`."""
 
@@ -285,10 +286,11 @@ class BaselineModel():
     
     def _init_inference_decoder(self):
         with tf.variable_scope(self.decoder_scope_name) as scope:
-            inferenceHelper = seq2seq.GreedyEmbeddingHelper(
+            inferenceHelper = GreedyAntiLMHelper(
                     embedding=self.embedding_matrix,
                     start_tokens=tf.tile([START_TOKEN_INDEX], [self.batch_size]),
-                    end_token=END_TOKEN_INDEX)
+                    end_token=END_TOKEN_INDEX,
+                    lm_softmax=self.lm_softmax)
 
             self.decoder_inference = tf.contrib.seq2seq.BasicDecoder(
                     cell=self.decoder_cell,
@@ -303,10 +305,8 @@ class BaselineModel():
                 impute_finished=True,
                 maximum_iterations=conf.max_decoder_inference_length,
                 scope=scope)
-    
-            orig_logits = decoder_prediction_outputs.rnn_output
-            penalized_logits = tf.subtract(orig_logits, tf.scalar_mul(conf.antilm_penalization_weight, self.lm_logits))
-            self.decoder_prediction_inference = tf.argmax(penalized_logits, axis=-1, name='decoder_prediction_inference')
+
+            self.decoder_prediction_inference = tf.argmax(decoder_prediction_outputs.rnn_output, axis=-1, name='decoder_prediction_inference')
             
     def _init_dummy_inference_decoder(self):
         with tf.variable_scope(self.decoder_scope_name, reuse=True) as scope:
@@ -330,7 +330,7 @@ class BaselineModel():
                 maximum_iterations=conf.antilm_max_penalization_len,
                 scope=scope)
             dummy_decoder_logits = decoder_dummy_prediction_outputs.rnn_output
-            self.dummy_decoder_softmax = tf.softmax(dummy_decoder_logits)
+            self.dummy_decoder_softmax = tf.nn.softmax(dummy_decoder_logits)
             
     def _init_optimizer(self):
         logits = tf.transpose(self.decoder_logits_train, [1, 0, 2])
@@ -360,13 +360,13 @@ class BaselineModel():
             self.dropout_keep_prob: keep_prob,
         }
 
-    def make_inference_inputs(self, input_seq, input_seq_len, lm_logits = None):
+    def make_inference_inputs(self, input_seq, input_seq_len, lm_softmax = None):
         dic = {
             self.encoder_inputs: input_seq,
             self.encoder_inputs_length: input_seq_len,
             self.dropout_keep_prob: 1,
         }
-        if lm_logits is not None:
-            dic[self.lm_logits] = lm_logits
+        if lm_softmax is not None:
+            dic[self.lm_softmax] = lm_softmax
 
         return dic
