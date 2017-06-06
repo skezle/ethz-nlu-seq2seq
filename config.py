@@ -26,3 +26,5 @@ class Config:
     word2vec_workers_count = 4
 
     attention_size = 512
+
+    antilm_penalization_weight = 0.6

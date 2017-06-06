@@ -1,0 +1,39 @@
+import tensorflow as tf
+from config import Config as conf
+from data_utility import START_TOKEN_INDEX
+
+def batch_dummy_paddings(paddings, lengths):
+
+    num_batches = ceil(len(enc_inputs) / conf.batch_size)    
+
+    for batch_num in range(num_batches):
+
+        encoder_batch = paddings[batch_num*batch_size:(batch_num+1)*batch_size, :]
+        encoder_batch_lens = lengths[batch_num*batch_size:(batch_num+1)*batch_size]
+        
+        yield encoder_batch, encoder_batch_lens
+
+def construct_lm_logits(config, model):
+    # construct paddng lists up to input max len
+    max_input_len = conf.input_sentence_max_length + 1 # Incremented by 1 because of the final EOS
+    paddings = np.full((max_input_len, conf.max_decoder_inference_length), START_TOKEN_INDEX, dtype=np.int32)
+    padding_lengths = list(range(1, max_input_len + 1))
+
+    # loop through all the batches
+    print("Constructing dummy language model")
+    with tf.Session(config=configProto) as sess:
+
+        all_logits = []
+        for dummy_batch, dummy_batch_lens in tqdm(
+                        batch_dummy_paddings(paddings, padding_lengths), total=ceil(max_input_len / conf.batch_size)):
+
+            feed_dict = model.make_inference_inputs(dummy_batch, dummy_batch_lens)
+            decoder_logits = sess.run(model.dummy_decoder_logits, feed_dict)
+            
+            assert decoder_logits.shape == (len(dummy_batch_lens), conf.max_decoder_inference_length, conf.vocabulary_size)
+
+            all_logits.append(decoder_logits)
+
+    assert all_logits.shape == (max_input_len + 1, conf.max_decoder_inference_length, conf.vocabulary_size)
+
+    return all_logits

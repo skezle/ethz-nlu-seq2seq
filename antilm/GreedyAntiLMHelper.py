@@ -82,7 +82,7 @@ class GreedyAntiLMHelper(CustomHelper):
   result through an embedding layer to get the next input.
   """
 
-  def __init__(self, embedding, start_tokens, end_token):
+  def __init__(self, embedding, start_tokens, end_token, lm_logits):
     """Initializer.
 
     Args:
@@ -90,7 +90,7 @@ class GreedyAntiLMHelper(CustomHelper):
         or the `params` argument for `embedding_lookup`.
       start_tokens: `int32` vector shaped `[batch_size]`, the start tokens.
       end_token: `int32` scalar, the token that marks end of decoding.
-
+      lm_logits: 
     Raises:
       ValueError: if `sequence_length` is not a 1D tensor.
     """
@@ -100,6 +100,7 @@ class GreedyAntiLMHelper(CustomHelper):
       self._embedding_fn = (
           lambda ids: embedding_ops.embedding_lookup(embedding, ids))
 
+    self._lm_logits = lm_logits
     self._start_tokens = ops.convert_to_tensor(
         start_tokens, dtype=dtypes.int32, name="start_tokens")
     self._end_token = ops.convert_to_tensor(
@@ -126,8 +127,9 @@ class GreedyAntiLMHelper(CustomHelper):
     if not isinstance(outputs, ops.Tensor):
       raise TypeError("Expected outputs to be a single Tensor, got: %s" %
                       type(outputs))
+    penalized_logits = outputs - conf.antilm_penalization_weight * lm_logits
     sample_ids = math_ops.cast(
-        math_ops.argmax(outputs, axis=-1), dtypes.int32)
+        math_ops.argmax(penalized_logits, axis=-1), dtypes.int32)
     return sample_ids
 
   def next_inputs(self, time, outputs, state, sample_ids, name=None):

@@ -5,7 +5,7 @@ from random import choice
 from tqdm import tqdm
 from data_utility import *
 from baseline import BaselineModel
-
+from antilm.antilm import construct_lm_logits
 ###
 # Graph execution
 ###
@@ -87,8 +87,7 @@ def mainFunc(argv):
     assert model != None
     # Materialize validation data
     validation_enc_inputs, _, word_2_index, index_2_word = get_data_by_type('eval')
-
-    print("Using network to predict sentences..")
+    
     with tf.Session(config=configProto) as sess:
         global_step = 1
 
@@ -96,6 +95,10 @@ def mainFunc(argv):
         sess.run(tf.global_variables_initializer())
         saver.restore(sess, checkpoint_filepath)
 
+        print("Constructing language model")
+        lm_logits = compute_lm_logits()
+
+        print("Using network to predict sentences..")
         with open(output_filepath, 'w') as out:
             for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(
                     bucket_by_sequence_length(validation_enc_inputs, _, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False),
