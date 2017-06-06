@@ -25,12 +25,10 @@ class BaselineModel():
                  attention=False,
                  dropout=False,
                  num_layers=1,
-                 is_training=True,
-                 antilm_penalty=0.0):
+                 is_training=True):
         self.bidirectional = bidirectional
         self.encoder_scope_name = "Encoder" if bidirectional else "BidirectionalEncoder"
         self.decoder_scope_name = "Decoder"
-        self.antilm_penalty = antilm_penalty
         self.attention = attention ## used when initialising the decoder
         self.dropout = dropout
         self.num_layers = num_layers
@@ -51,8 +49,7 @@ class BaselineModel():
 
         
         self._init_placeholders()
-        if self.antilm_penalty == 0.0:
-            self._init_antilm()
+
         self._init_cells()
 
         self._init_decoder_train_connectors()
@@ -119,10 +116,6 @@ class BaselineModel():
         self.dropout_keep_prob = tf.placeholder(tf.float32)
 
         self.batch_size, _ = tf.unstack(tf.shape(self.encoder_inputs))
-
-    def _init_antilm(self):
-        dummy_pad_inputs = tf.ones(tf.shape(self.encoder_inputs)) * self.PAD
-
 
     def _init_decoder_train_connectors(self):
         """
@@ -298,17 +291,14 @@ class BaselineModel():
                     output_layer=self.dense_layer)
 
             ## Prediction
-            decoder_prediction_outputs, finstate = custom_dynamic_decode(
+            decoder_prediction_outputs, _ = tf.contrib.seq2seq.dynamic_decode(
                 decoder=self.decoder_inference,
                 output_time_major=False,
                 impute_finished=True,
                 maximum_iterations=conf.max_decoder_inference_length,
                 scope=scope)
-
-            print(finstate)
-            antilm_penalty_logits = decoder_antilm_prediction_outputs.rnn_output * self.antilm_penalty if self.antilm_penalty != 0.0 else 0
-            penalized_logits = decoder_prediction_outputs.rnn_output - antilm_penalty_logits
-            self.decoder_prediction_inference = tf.argmax(penalized_logits, axis=-1, name='decoder_prediction_inference')
+    
+            self.decoder_prediction_inference = tf.argmax(decoder_prediction_outputs, axis=-1, name='decoder_prediction_inference')
             
     def _init_optimizer(self):
         logits = tf.transpose(self.decoder_logits_train, [1, 0, 2])
