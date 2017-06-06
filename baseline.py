@@ -6,13 +6,14 @@ import math
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.seq2seq as seq2seq
+from custom_decoder import custom_dynamic_decode
 from tensorflow.contrib.layers import safe_embedding_lookup_sparse as embedding_lookup_unique
 from tensorflow.contrib.rnn import LSTMCell, LSTMStateTuple, GRUCell
 from tensorflow.python.layers.core import Dense
 from tensorflow.python.ops.rnn_cell_impl import _zero_state_tensors
 from data_utility import START_TOKEN_INDEX, END_TOKEN_INDEX, PAD_TOKEN_INDEX
 from config import Config as conf
-
+from antilm.GreedyAntiLMHelper import GreedyAntiLMHelper
 class BaselineModel():
     """Seq2Seq model using blocks from new `tf.contrib.seq2seq`."""
 
@@ -24,11 +25,12 @@ class BaselineModel():
                  attention=False,
                  dropout=False,
                  num_layers=1,
-                 is_training=True):
+                 is_training=True,
+                 antilm_penalty=0.0):
         self.bidirectional = bidirectional
         self.encoder_scope_name = "Encoder" if bidirectional else "BidirectionalEncoder"
         self.decoder_scope_name = "Decoder"
-
+        self.antilm_penalty = antilm_penalty
         self.attention = attention ## used when initialising the decoder
         self.dropout = dropout
         self.num_layers = num_layers
@@ -49,7 +51,8 @@ class BaselineModel():
 
         
         self._init_placeholders()
-
+        if self.antilm_penalty == 0.0:
+            self._init_antilm()
         self._init_cells()
 
         self._init_decoder_train_connectors()
@@ -115,6 +118,12 @@ class BaselineModel():
 
         self.dropout_keep_prob = tf.placeholder(tf.float32)
 
+        self.batch_size, _ = tf.unstack(tf.shape(self.encoder_inputs))
+
+    def _init_antilm(self):
+        dummy_pad_inputs = tf.ones(tf.shape(self.encoder_inputs)) * self.PAD
+
+
     def _init_decoder_train_connectors(self):
         """
         During training, `decoder_targets`
@@ -125,7 +134,6 @@ class BaselineModel():
         with tf.name_scope('DecoderTrainFeeds'):
             batch_size, sequence_size = tf.unstack(tf.shape(self.decoder_targets))
 
-            self.batch_size, _ = tf.unstack(tf.shape(self.encoder_inputs))
             BOS_SLICE = tf.ones([batch_size, 1], dtype=tf.int32) * self.BOS
             PAD_SLICE = tf.ones([batch_size, 1], dtype=tf.int32) * self.PAD
 
@@ -278,7 +286,7 @@ class BaselineModel():
     
     def _init_inference_decoder(self):
         with tf.variable_scope(self.decoder_scope_name) as scope:
-            inferenceHelper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
+            inferenceHelper = GreedyAntiLMHelper(
                     embedding=self.embedding_matrix,
                     start_tokens=tf.tile([START_TOKEN_INDEX], [self.batch_size]),
                     end_token=END_TOKEN_INDEX)
@@ -290,14 +298,17 @@ class BaselineModel():
                     output_layer=self.dense_layer)
 
             ## Prediction
-            decoder_prediction_outputs, _ = tf.contrib.seq2seq.dynamic_decode(
+            decoder_prediction_outputs, finstate = custom_dynamic_decode(
                 decoder=self.decoder_inference,
                 output_time_major=False,
                 impute_finished=True,
                 maximum_iterations=conf.max_decoder_inference_length,
                 scope=scope)
 
-            self.decoder_prediction_inference = tf.argmax(decoder_prediction_outputs.rnn_output, axis=-1, name='decoder_prediction_inference')
+            print(finstate)
+            antilm_penalty_logits = decoder_antilm_prediction_outputs.rnn_output * self.antilm_penalty if self.antilm_penalty != 0.0 else 0
+            penalized_logits = decoder_prediction_outputs.rnn_output - antilm_penalty_logits
+            self.decoder_prediction_inference = tf.argmax(penalized_logits, axis=-1, name='decoder_prediction_inference')
             
     def _init_optimizer(self):
         logits = tf.transpose(self.decoder_logits_train, [1, 0, 2])
