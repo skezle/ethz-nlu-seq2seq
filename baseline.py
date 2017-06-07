@@ -358,9 +358,9 @@ class BaselineModel():
                                                                               scope=scope)
 
             if self.anti_lm:
-                self.decoder_prediction_inference_anti_lm = tf.argmax(self.decoder_logits_inference - conf.anti_lm_penalty * self.decoder_logits_anti_lm,
-                                                                     axis=-1,
-                                                                     name='decoder_prediction_inference')
+                self.decoder_prediction_inference_anti_lm = tf.argmax(tf.subtract(self.decoder_logits_inference, tf.scalar_mul(conf.anti_lm_penalty, self.decoder_logits_anti_lm)),
+                                                                      axis=-1,
+                                                                      name='decoder_prediction_inference')
             else:
                 self.decoder_prediction_inference = tf.argmax(self.decoder_logits_inference, axis=-1, name='decoder_prediction_inference')
 

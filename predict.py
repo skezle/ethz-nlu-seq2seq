@@ -127,7 +127,7 @@ def mainFunc(argv):
                                                         )
 
 
-                predictions = sess.run(model.decoder_prediction_inference, feed_dict).T
+                predictions = sess.run(model.decoder_prediction_inference_anti_lm, feed_dict).T
                 truncated_predictions = truncate_after_eos(predictions)
                 out.writelines(map(maptoword, truncated_predictions))
 
