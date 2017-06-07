@@ -5,6 +5,7 @@ from random import choice
 from tqdm import tqdm
 from data_utility import *
 from baseline import BaselineModel
+from anti_lm.anti_lm import construct_lm_softmax, construct_lm_softmax_batch
 
 ###
 # Graph execution
@@ -102,6 +103,9 @@ def mainFunc(argv):
     # Materialize validation data
     validation_enc_inputs, _, word_2_index, index_2_word = get_data_by_type('eval')
 
+    # find the lengths of all input sentences in our validation data set
+    validation_input_lengths = set(map(lambda x: len(x), validation_enc_inputs))
+
     print("Using network to predict sentences..")
     with tf.Session(config=configProto) as sess:
         global_step = 1
@@ -113,6 +117,9 @@ def mainFunc(argv):
         for i in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
             print(i)
 
+        print("Constructing anti language model")
+        lm_softmax_dict = construct_lm_softmax(sess, model, validation_input_lengths)
+
         with open(output_filepath, 'w') as out:
             for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(
                     bucket_by_sequence_length(validation_enc_inputs, _, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False),
@@ -121,9 +128,11 @@ def mainFunc(argv):
                 print("shape of data batch: {}".format(data_batch.shape))
                 print("data_sentence_lengths: {}".format(data_sentence_lengths))
                 print("data_sentence_lengths len: {}".format(len(data_sentence_lengths)))
+
+                lm_softmax_batch = construct_lm_softmax_batch(lm_softmax_dict, data_sentence_lengths)
                 feed_dict = model.make_inference_inputs(data_batch,
                                                         data_sentence_lengths,
-                                                        np.full((data_batch.shape[0], conf.batch_size), word_2_index['<pad>'])
+                                                        lm_softmax_batch
                                                         )
 
 

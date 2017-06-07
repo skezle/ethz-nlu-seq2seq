@@ -40,7 +40,7 @@ def triples_to_tuples(input_filepath, output_filepath=None):
             triples = line.strip().split('\t')
             tuples.append("{}\t{}\n".format(triples[0], triples[1]))
             tuples.append("{}\t{}\n".format(triples[1], triples[2]))
-    
+
     if output_filepath is None:
         return tuples
     else:
@@ -162,7 +162,7 @@ def get_or_create_dicts_from_train_data():
 
 ##
 # Applies the word-2-index conversion to a corpus of tuples.
-# 
+#
 # sentenceStringList:   List of interaction strings. Each interaction consists of two
 #                       sentences delimited by '\t'.
 # vocabulary:           The vocabulary used to create the w2i dictionary
@@ -204,7 +204,7 @@ def get_data_by_type(t):
 
         if not os.path.isfile(filename):
             triples_to_tuples(VALIDATION_FILEPATH, filename)
- 
+
     else:
         print('Type must be "train" or "eval".')
         return
@@ -229,10 +229,10 @@ def get_data_by_type(t):
 def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True, shuffle_batches=True, filter_long_sent=True):
 
     assert len(enc_inputs) == len(dec_inputs)
-    enc_dec = list(zip(enc_inputs, dec_inputs))     
+    enc_dec = list(zip(enc_inputs, dec_inputs))
     if filter_long_sent:
         enc_dec = list(filter(lambda tup: len(tup[0]) < conf.input_sentence_max_length or len(tup[1]) < conf.input_sentence_max_length, enc_dec))
-    
+
     if sort_data:
         enc_dec = zip(enc_inputs, dec_inputs)
         enc_dec = sorted(enc_dec, key=lambda inputs: (len(inputs[0]), len(inputs[1])))
@@ -240,12 +240,12 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
     enc_inputs, dec_inputs = zip(*enc_dec)
     assert len(enc_inputs) == len(dec_inputs)
     # else we keep the data unsorted
-    
-    num_batches = ceil(len(enc_inputs) / batch_size)    
+
+    num_batches = ceil(len(enc_inputs) / batch_size)
 
     all_batches = []
     for batch_num in range(num_batches):
-        encoder_sequence_lengths = [len(sentence) 
+        encoder_sequence_lengths = [len(sentence)
                                     for sentence
                                     in enc_inputs[batch_num*batch_size:(batch_num+1)*batch_size]]
         max_len_enc = max(encoder_sequence_lengths)
@@ -253,7 +253,7 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
                          for i, sentence
                          in enumerate(enc_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
         encoder_batch = np.array(encoder_batch).transpose()
-        decoder_sequence_lengths = [len(sentence) 
+        decoder_sequence_lengths = [len(sentence)
                                     for sentence
                                     in dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size]]
         max_len_dec = max(decoder_sequence_lengths)

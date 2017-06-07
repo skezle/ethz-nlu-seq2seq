@@ -10,6 +10,7 @@ from tensorflow.contrib.layers import safe_embedding_lookup_sparse as embedding_
 from tensorflow.contrib.rnn import LSTMCell, LSTMStateTuple, GRUCell
 from data_utility import START_TOKEN_INDEX, END_TOKEN_INDEX, PAD_TOKEN_INDEX
 from config import Config as conf
+from anti_lm.anti_lm_seq2seq import seq2seq_anti_lm_attention_decoder_fn_inference
 
 
 class BaselineModel():
@@ -62,6 +63,7 @@ class BaselineModel():
             self._init_simple_encoder()
 
         self._init_decoder()
+        self._init_dummy_inference_decoder()
 
         self._init_optimizer()
 
@@ -91,10 +93,16 @@ class BaselineModel():
         )
 
         # inputs <pad> <pad> ...
-        self.anti_lm_encoder_inputs = tf.placeholder(
-            shape=(None, None),
-            dtype=tf.int32,
-            name='anti_lm_encoder_inputs',
+        # self.anti_lm_encoder_inputs = tf.placeholder(
+        #     shape=(None, None),
+        #     dtype=tf.int32,
+        #     name='anti_lm_encoder_inputs',
+        # )
+
+        self.lm_softmax = tf.placeholder(
+            shape = (None, None, None),
+            dtype=tf.float32,
+            name='lm_softmax',
         )
 
         # required for training, not required for testing
@@ -169,8 +177,8 @@ class BaselineModel():
             self.encoder_inputs_embedded = tf.nn.embedding_lookup(
                 self.embedding_matrix, self.encoder_inputs)
 
-            self.anti_lm_encoder_inputs_embedded = tf.nn.embedding_lookup(
-                self.embedding_matrix, self.anti_lm_encoder_inputs)
+            # self.anti_lm_encoder_inputs_embedded = tf.nn.embedding_lookup(
+            #     self.embedding_matrix, self.anti_lm_encoder_inputs)
 
             self.decoder_train_inputs_embedded = tf.nn.embedding_lookup(
                 self.embedding_matrix, self.decoder_train_inputs)
@@ -178,27 +186,12 @@ class BaselineModel():
     def _init_simple_encoder(self):
         with tf.variable_scope("Encoder") as scope:
 
-            ## hard overwrite
-            ## Major hackage reporting for duty
-            self.encoder_cell = tf.contrib.rnn.LSTMCell(conf.encoder_cell_size)
-
             (self.encoder_outputs, self.encoder_state) = (
                 tf.nn.dynamic_rnn(cell=self.encoder_cell,
                                   inputs=self.encoder_inputs_embedded,
                                   sequence_length=self.encoder_inputs_length,
                                   time_major=True,
                                   dtype=tf.float32)
-                )
-
-            scope.reuse_variables()
-
-            (_, self.anti_lm_encoder_states) = (
-                tf.nn.dynamic_rnn(cell=self.encoder_cell,
-                                  inputs=self.anti_lm_encoder_inputs_embedded,
-                                  sequence_length=self.encoder_inputs_length,
-                                  time_major=True,
-                                  dtype=tf.float32,
-                                  scope=None) ## default is None
                 )
 
     def _init_bidirectional_encoder(self):
@@ -336,9 +329,12 @@ class BaselineModel():
             )
 
             ## Anti language model prediction: want to penalise banal responses
-            anti_lm_decoder_fn_inference = seq2seq.attention_decoder_fn_inference(
+            ## defined in anti_lm/anti_lm_seq2seq.py
+            ## modification of https://github.com/tensorflow/tensorflow/blob/r1.0/tensorflow/contrib/seq2seq/python/ops/attention_decoder_fn.py
+            anti_lm_attention_decoder_fn_inference = seq2seq_anti_lm_attention_decoder_fn_inference(
                 output_fn=output_fn,
-                encoder_state=self.anti_lm_encoder_states, ## output of the encoder
+                encoder_state=self.encoder_state, ## output of the encoder
+                lm_softmax=self.lm_softmax, ## <pad> <pad> anti_lm softmax outputs
                 attention_keys=attention_keys,
                 attention_values=attention_values,
                 attention_score_fn=attention_score_fn,
@@ -353,17 +349,62 @@ class BaselineModel():
             ##scope.reuse_variables()
 
             (self.decoder_logits_anti_lm, _, _) = seq2seq.dynamic_rnn_decoder(cell=self.decoder_cell,
-                                                                              decoder_fn=anti_lm_decoder_fn_inference,
+                                                                              decoder_fn=anti_lm_attention_decoder_fn_inference,
                                                                               time_major=True,
                                                                               scope=scope)
 
             if self.anti_lm:
-                self.decoder_prediction_inference_anti_lm = tf.argmax(tf.subtract(self.decoder_logits_inference, tf.scalar_mul(conf.anti_lm_penalty, self.decoder_logits_anti_lm)),
+                self.decoder_prediction_inference_anti_lm = tf.argmax(tf.scalar_mul(conf.anti_lm_penalty, self.decoder_logits_anti_lm),
                                                                       axis=-1,
                                                                       name='decoder_prediction_inference')
             else:
                 self.decoder_prediction_inference = tf.argmax(self.decoder_logits_inference, axis=-1, name='decoder_prediction_inference')
 
+    def _init_dummy_inference_decoder(self):
+        with tf.variable_scope("Decoder", reuse=True) as scope:
+
+            self.decoder_cell = tf.contrib.rnn.LSTMCell(conf.decoder_cell_size)
+
+            def output_fn(outputs):
+                return tf.contrib.layers.fully_connected(inputs=outputs,
+                                                         num_outputs=self.vocab_size,
+                                                         activation_fn=None, ## linear
+                                                         reuse=True,
+                                                         scope=scope)
+
+            attention_states = tf.transpose(self.encoder_outputs, [1, 0, 2]) ## permutation of dimentions is [0,1,2] to [1,0,2]
+
+            # Prepare keys/values/functions for attention.
+            (attention_keys,
+            attention_values,
+            attention_score_fn,
+            attention_construct_fn) = seq2seq.prepare_attention(
+                attention_states=attention_states, ## encoder outputs for attention to 'attend to'
+                attention_option="bahdanau",
+                num_units=self.decoder_hidden_units,
+            )
+
+            ## basic decoder function for inference of the <pad> <pad> ...
+            dummy_decoder_fn_inference = seq2seq.attention_decoder_fn_inference(
+                output_fn=output_fn,
+                encoder_state=self.encoder_state, ## output of the encoder
+                attention_keys=attention_keys,
+                attention_values=attention_values,
+                attention_score_fn=attention_score_fn,
+                attention_construct_fn=attention_construct_fn,
+                embeddings=self.embedding_matrix,
+                start_of_sequence_id=self.BOS,
+                end_of_sequence_id=-1, # for dummy decoder we want to get all the logits up to the max_decoder_inference_length, hence set to token which we know we do not have
+                maximum_length=conf.anti_lm_max_penalization_len-1,
+                num_decoder_symbols=self.vocab_size,
+            )
+
+            (dummy_decoder_logits_anti_lm, _, _) = seq2seq.dynamic_rnn_decoder(cell=self.decoder_cell,
+                                                                               decoder_fn=dummy_decoder_fn_inference,
+                                                                               time_major=True,
+                                                                               scope=scope)
+
+            self.dummy_decoder_softmax = tf.nn.softmax(dummy_decoder_logits_anti_lm)
 
     def _init_optimizer(self):
         logits = tf.transpose(self.decoder_logits_train, [1, 0, 2])
@@ -388,10 +429,12 @@ class BaselineModel():
             self.dropout_keep_prob: conf.dropout_keep_prob,
         }
 
-    def make_inference_inputs(self, input_seq, input_seq_len, anti_lm_encoder_inputs):
-        return {
+    def make_inference_inputs(self, input_seq, input_seq_len, lm_softmax = None):
+        dic = {
             self.encoder_inputs: input_seq,
             self.encoder_inputs_length: input_seq_len,
             self.dropout_keep_prob: 1,
-            self.anti_lm_encoder_inputs: anti_lm_encoder_inputs
         }
+        if lm_softmax is not None:
+            dic[self.lm_softmax] = lm_softmax
+        return dic
