@@ -37,7 +37,7 @@ def mainFunc(argv):
         elif opt in ("-n", "--num_cores"):
             num_cores = int(arg)
         elif opt in ("-x", "--experiment"):
-            if arg in ("baseline", "attention"):
+            if arg in ("baseline", "attention", "anti_lm"):
                 experiment = arg
             else:
                 printUsage()
@@ -84,7 +84,19 @@ def mainFunc(argv):
                               bidirectional=conf.bidirectional_encoder,
                               attention=True,
                               dropout=conf.use_dropout,
-                              num_layers=conf.num_layers)
+                              num_layers=conf.num_layers,
+                              anti_lm=False)
+
+    elif experiment == "anti_lm":
+        model = BaselineModel(encoder_cell=conf.encoder_cell,
+                              decoder_cell=conf.decoder_cell,
+                              vocab_size=conf.vocabulary_size,
+                              embedding_size=conf.word_embedding_size,
+                              bidirectional=conf.bidirectional_encoder,
+                              attention=True,
+                              dropout=conf.use_dropout,
+                              num_layers=conf.num_layers,
+                              anti_lm=True)
 
     assert model != None
     # Materialize validation data
@@ -98,12 +110,22 @@ def mainFunc(argv):
         sess.run(tf.global_variables_initializer())
         saver.restore(sess, checkpoint_filepath)
 
+        for i in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
+            print(i)
+
         with open(output_filepath, 'w') as out:
             for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(
                     bucket_by_sequence_length(validation_enc_inputs, _, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False),
                     total=ceil(len(validation_enc_inputs) / conf.batch_size)):
 
-                feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths)
+                print("shape of data batch: {}".format(data_batch.shape))
+                print("data_sentence_lengths: {}".format(data_sentence_lengths))
+                print("data_sentence_lengths len: {}".format(len(data_sentence_lengths)))
+                feed_dict = model.make_inference_inputs(data_batch,
+                                                        data_sentence_lengths,
+                                                        np.full((data_batch.shape[0], conf.batch_size), word_2_index['<pad>'])
+                                                        )
+
 
                 predictions = sess.run(model.decoder_prediction_inference, feed_dict).T
                 truncated_predictions = truncate_after_eos(predictions)

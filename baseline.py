@@ -22,7 +22,8 @@ class BaselineModel():
                  bidirectional=True,
                  attention=False,
                  dropout=False,
-                 num_layers=1):
+                 num_layers=1,
+                 anti_lm=False):
         self.bidirectional = bidirectional
         self.attention = attention ## used when initialising the decoder
         self.dropout = dropout
@@ -34,6 +35,8 @@ class BaselineModel():
         self.encoder_cell = encoder_cell
         self.decoder_cell = decoder_cell
 
+        self.anti_lm = anti_lm
+
         self._make_graph()
 
     @property
@@ -44,7 +47,7 @@ class BaselineModel():
     def _make_graph(self):
         tf.reset_default_graph()
 
-        
+
         self._init_placeholders()
 
         self._init_dropout()
@@ -85,6 +88,13 @@ class BaselineModel():
             shape=(None,),
             dtype=tf.int32,
             name='encoder_inputs_length',
+        )
+
+        # inputs <pad> <pad> ...
+        self.anti_lm_encoder_inputs = tf.placeholder(
+            shape=(None, None),
+            dtype=tf.int32,
+            name='anti_lm_encoder_inputs',
         )
 
         # required for training, not required for testing
@@ -139,7 +149,7 @@ class BaselineModel():
 
             self.decoder_train_targets = decoder_train_targets
 
-            self.loss_weights = tf.sequence_mask(self.decoder_train_length, 
+            self.loss_weights = tf.sequence_mask(self.decoder_train_length,
                                                  tf.reduce_max(self.decoder_train_length),
                                                  dtype=tf.float32)
 
@@ -159,11 +169,19 @@ class BaselineModel():
             self.encoder_inputs_embedded = tf.nn.embedding_lookup(
                 self.embedding_matrix, self.encoder_inputs)
 
+            self.anti_lm_encoder_inputs_embedded = tf.nn.embedding_lookup(
+                self.embedding_matrix, self.anti_lm_encoder_inputs)
+
             self.decoder_train_inputs_embedded = tf.nn.embedding_lookup(
                 self.embedding_matrix, self.decoder_train_inputs)
 
     def _init_simple_encoder(self):
         with tf.variable_scope("Encoder") as scope:
+
+            ## hard overwrite
+            ## Major hackage reporting for duty
+            self.encoder_cell = tf.contrib.rnn.LSTMCell(conf.encoder_cell_size)
+
             (self.encoder_outputs, self.encoder_state) = (
                 tf.nn.dynamic_rnn(cell=self.encoder_cell,
                                   inputs=self.encoder_inputs_embedded,
@@ -172,8 +190,21 @@ class BaselineModel():
                                   dtype=tf.float32)
                 )
 
+            scope.reuse_variables()
+
+            (_, self.anti_lm_encoder_states) = (
+                tf.nn.dynamic_rnn(cell=self.encoder_cell,
+                                  inputs=self.anti_lm_encoder_inputs_embedded,
+                                  sequence_length=self.encoder_inputs_length,
+                                  time_major=True,
+                                  dtype=tf.float32,
+                                  scope=None) ## default is None
+                )
+
     def _init_bidirectional_encoder(self):
         with tf.variable_scope("BidirectionalEncoder") as scope:
+
+            self.encoder_cell = tf.contrib.rnn.LSTMCell(conf.encoder_cell_size)
 
             ((encoder_fw_outputs,
               encoder_bw_outputs),
@@ -202,6 +233,9 @@ class BaselineModel():
 
     def _init_decoder(self):
         with tf.variable_scope("Decoder") as scope:
+
+            self.decoder_cell = tf.contrib.rnn.LSTMCell(conf.decoder_cell_size)
+
             def output_fn(outputs):
                 ##return tf.contrib.layers.linear(outputs, self.vocab_size, scope=scope)
                 return tf.contrib.layers.fully_connected(inputs=outputs,
@@ -297,9 +331,39 @@ class BaselineModel():
                     decoder_fn=decoder_fn_inference,
                     time_major=True,
                     scope=scope,
+                    name = "decoder_inference"
                 )
             )
-            self.decoder_prediction_inference = tf.argmax(self.decoder_logits_inference, axis=-1, name='decoder_prediction_inference')
+
+            ## Anti language model prediction: want to penalise banal responses
+            anti_lm_decoder_fn_inference = seq2seq.attention_decoder_fn_inference(
+                output_fn=output_fn,
+                encoder_state=self.anti_lm_encoder_states, ## output of the encoder
+                attention_keys=attention_keys,
+                attention_values=attention_values,
+                attention_score_fn=attention_score_fn,
+                attention_construct_fn=attention_construct_fn,
+                embeddings=self.embedding_matrix,
+                start_of_sequence_id=self.BOS,
+                end_of_sequence_id=self.EOS,
+                maximum_length=conf.max_decoder_inference_length,
+                num_decoder_symbols=self.vocab_size,
+            )
+
+            ##scope.reuse_variables()
+
+            (self.decoder_logits_anti_lm, _, _) = seq2seq.dynamic_rnn_decoder(cell=self.decoder_cell,
+                                                                              decoder_fn=anti_lm_decoder_fn_inference,
+                                                                              time_major=True,
+                                                                              scope=scope)
+
+            if self.anti_lm:
+                self.decoder_prediction_inference_anti_lm = tf.argmax(self.decoder_logits_inference - conf.anti_lm_penalty * self.decoder_logits_anti_lm,
+                                                                     axis=-1,
+                                                                     name='decoder_prediction_inference')
+            else:
+                self.decoder_prediction_inference = tf.argmax(self.decoder_logits_inference, axis=-1, name='decoder_prediction_inference')
+
 
     def _init_optimizer(self):
         logits = tf.transpose(self.decoder_logits_train, [1, 0, 2])
@@ -324,9 +388,10 @@ class BaselineModel():
             self.dropout_keep_prob: conf.dropout_keep_prob,
         }
 
-    def make_inference_inputs(self, input_seq, input_seq_len):
+    def make_inference_inputs(self, input_seq, input_seq_len, anti_lm_encoder_inputs):
         return {
             self.encoder_inputs: input_seq,
             self.encoder_inputs_length: input_seq_len,
             self.dropout_keep_prob: 1,
+            self.anti_lm_encoder_inputs: anti_lm_encoder_inputs
         }

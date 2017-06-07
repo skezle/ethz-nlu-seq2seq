@@ -2,10 +2,10 @@ import tensorflow as tf
 
 class Config:
     vocabulary_size = 10000
-    bidirectional_encoder = True
+    bidirectional_encoder = False
     encoder_cell_size = 512
     encoder_cell = tf.contrib.rnn.LSTMCell(encoder_cell_size)
-    decoder_cell_size = 1024
+    decoder_cell_size = 512
     decoder_cell = tf.contrib.rnn.LSTMCell(decoder_cell_size)
     num_layers = 1
     use_dropout = False
@@ -19,9 +19,9 @@ class Config:
     trace_filename = "trace.json"
     input_sentence_max_length = 60
     max_decoder_inference_length = 60
-
+    anti_lm_penalty = 1
     use_word2vec = False
-    word_embedding_size = 100
+    word_embedding_size = 200
     word2vec_directory = "word2vec"
     word2vec_path = word2vec_directory + "/wordembeddings_" + str(word_embedding_size) + ".word2vec"
     word2vec_min_word_freq = 1

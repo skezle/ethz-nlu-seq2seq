@@ -83,7 +83,7 @@ def mainFunc(argv):
     # Materialize validation data
     validation_enc_inputs, validation_dec_inputs, _, _ = get_data_by_type('eval')
     validation_data = list(bucket_by_sequence_length(validation_enc_inputs, validation_dec_inputs, conf.batch_size, filter_long_sent=False))
-    
+
     print("Starting TensorFlow session")
     with tf.Session(config=configProto) as sess:
         global_step = 1
