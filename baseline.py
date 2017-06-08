@@ -122,6 +122,16 @@ class BaselineModel():
             dtype=tf.int32,
             name='decoder_targets_length',
         )
+        self.decoder_inputs = tf.placeholder(
+            shape=(None, None),
+            dtype=tf.int32,
+            name='decoder_targets'
+        )
+        self.decoder_inputs_length = tf.placeholder(
+            shape=(None,),
+            dtype=tf.int32,
+            name='decoder_targets_length',
+        )
 
         self.lm_softmax = tf.placeholder(
             shape=(None, None, None),
@@ -141,37 +151,8 @@ class BaselineModel():
         Here we do a bit of plumbing to set this up.
         """
         with tf.name_scope('DecoderTrainFeeds'):
-            batch_size, sequence_size = tf.unstack(tf.shape(self.decoder_targets))
-
-            BOS_SLICE = tf.ones([batch_size, 1], dtype=tf.int32) * self.BOS
-            PAD_SLICE = tf.ones([batch_size, 1], dtype=tf.int32) * self.PAD
-
-            #self.decoder_targets = tf.reshape(self.decoder_targets, [-1, conf.batch_size])
-            self.decoder_train_inputs = tf.concat([BOS_SLICE, self.decoder_targets], axis=1)
-            self.decoder_train_length = self.decoder_targets_length + 1
-
-            decoder_train_targets = tf.concat([self.decoder_targets, PAD_SLICE], axis=1)
-            _, decoder_train_targets_seq_len = tf.unstack(tf.shape(decoder_train_targets))
-
-            eos_multiplication_mask = tf.one_hot(self.decoder_train_length - 1,
-                                                        decoder_train_targets_seq_len,
-                                                        on_value=0, off_value=1,
-                                                        dtype=tf.int32)
-            eos_addition_mask = tf.one_hot(self.decoder_train_length - 1,
-                                                        decoder_train_targets_seq_len,
-                                                        on_value=self.EOS, off_value=0,
-                                                        dtype=tf.int32)
-
-            # hacky way using one_hot to put EOS symbol at the end of target sequence
-            decoder_train_targets = tf.add(
-                                            tf.multiply(decoder_train_targets,
-                                            eos_multiplication_mask),
-                                            eos_addition_mask)
-
-            self.decoder_train_targets = decoder_train_targets
-
-            self.loss_weights = tf.sequence_mask(self.decoder_train_length, 
-                                                 tf.reduce_max(self.decoder_train_length),
+            self.loss_weights = tf.sequence_mask(self.decoder_targets_length, 
+                                                 tf.reduce_max(self.decoder_targets_length),
                                                  dtype=tf.float32)
 
     def _init_embeddings(self):
@@ -191,7 +172,7 @@ class BaselineModel():
                 self.embedding_matrix, self.encoder_inputs)
 
             self.decoder_train_inputs_embedded = tf.nn.embedding_lookup(
-                self.embedding_matrix, self.decoder_train_inputs)
+                self.embedding_matrix, self.decoder_inputs)
 
     def _init_simple_encoder(self):
         with tf.variable_scope(self.encoder_scope_name) as scope:
@@ -259,7 +240,7 @@ class BaselineModel():
             ## Training
             scheduledTrainingHelper = tf.contrib.seq2seq.ScheduledEmbeddingTrainingHelper(
                             inputs=self.decoder_train_inputs_embedded,
-                            sequence_length=self.decoder_train_length,
+                            sequence_length=self.decoder_inputs_length,
                             embedding=self.embedding_matrix,
                             sampling_probability=conf.scheduled_sampling_prob,
                             time_major=False,
@@ -300,11 +281,10 @@ class BaselineModel():
     
     def _init_inference_decoder(self):
         with tf.variable_scope(self.decoder_scope_name) as scope:
-            inferenceHelper = GreedyAntiLMHelper(
+            inferenceHelper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
                     embedding=self.embedding_matrix,
                     start_tokens=tf.tile([START_TOKEN_INDEX], [self.batch_size]),
-                    end_token=END_TOKEN_INDEX,
-                    lm_softmax=self.lm_softmax)
+                    end_token=END_TOKEN_INDEX)
 
             self.decoder_inference = tf.contrib.seq2seq.BasicDecoder(
                     cell=self.decoder_cell,
@@ -349,7 +329,7 @@ class BaselineModel():
     def _init_optimizer(self):
         logits = tf.transpose(self.decoder_logits_train, [1, 0, 2])
         validation_logits = tf.transpose(self.decoder_logits_validation, [1, 0, 2])
-        targets = tf.transpose(self.decoder_train_targets, [1, 0])
+        targets = tf.transpose(self.decoder_targets, [1, 0])
         self.loss = seq2seq.sequence_loss(logits=logits, targets=targets,
                                           weights=self.loss_weights)
         self.validation_loss = seq2seq.sequence_loss(logits=validation_logits, targets=targets,
@@ -365,11 +345,13 @@ class BaselineModel():
         self.summary_op = tf.summary.merge([loss])
         self.validation_summary_op = tf.summary.merge([vali_loss])
 
-    def make_train_inputs(self, input_seq, input_seq_len, target_seq, target_seq_len, keep_prob = conf.dropout_keep_prob):
+    def make_train_inputs(self, input_seq, input_seq_len, label_input_seq, label_target_seq, target_seq_len, keep_prob = conf.dropout_keep_prob):
         return {
             self.encoder_inputs: input_seq,
             self.encoder_inputs_length: input_seq_len,
-            self.decoder_targets: target_seq,
+            self.decoder_inputs: label_input_seq,
+            self.decoder_inputs_length: target_seq_len,
+            self.decoder_targets: label_target_seq,
             self.decoder_targets_length: target_seq_len,
             self.dropout_keep_prob: keep_prob,
         }

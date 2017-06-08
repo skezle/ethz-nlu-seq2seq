@@ -125,8 +125,8 @@ def mainFunc(argv):
         print("Starting training")
         for i in range(conf.num_epochs):
             print("Training epoch {}".format(i))
-            for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size), total = ceil(len(enc_inputs) / conf.batch_size)):
-                feed_dict = model.make_train_inputs(data_batch, data_sentence_lengths, label_batch, label_sentence_lengths)
+            for data_batch, data_sentence_lengths, label_inputs_batch, label_targets_batch, label_sentence_lengths in tqdm(bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size), total = ceil(len(enc_inputs) / conf.batch_size)):
+                feed_dict = model.make_train_inputs(data_batch, data_sentence_lengths, label_inputs_batch, label_targets_batch, label_sentence_lengths)
                 run_options = None
                 run_metadata = None
                 if global_step % conf.trace_frequency == 0:
@@ -139,8 +139,8 @@ def mainFunc(argv):
 
                 if global_step % conf.validation_summary_frequency == 0:#
                     # Randomly choose a batch from the validation dataset and use it for loss calculation
-                    vali_data_batch, vali_data_sentence_lengths, vali_label_batch, vali_label_sentence_lengths = choice(validation_data)
-                    validation_feed_dict = model.make_train_inputs(vali_data_batch, vali_data_sentence_lengths, vali_label_batch, vali_label_sentence_lengths, keep_prob = 1.0)
+                    vali_data_batch, vali_data_sentence_lengths, vali_label_inputs_batch, vali_label_targets_batch, vali_label_sentence_lengths = choice(validation_data)
+                    validation_feed_dict = model.make_train_inputs(vali_data_batch, vali_data_sentence_lengths, vali_label_inputs_batch, vali_label_targets_batch, vali_label_sentence_lengths, keep_prob = 1.0)
                     validation_summary = sess.run(model.validation_summary_op, validation_feed_dict)
                     validation_writer.add_summary(validation_summary, global_step)
 

@@ -242,9 +242,9 @@ def get_data_by_type(t):
             lines = tuples_input.readlines()
             encoder_inputs, decoder_inputs = apply_w2i_to_corpus_tuples(lines, vocabulary, word_2_index)
 
-        # pickle.dump(encoder_inputs, open(ENCODER_INPUT_FILEPATH, 'wb'))
-        # pickle.dump(decoder_inputs, open(DECODER_INPUT_FILEPATH, 'wb'))
-        # print("encoder and decoder inputs pickled!")
+        pickle.dump(encoder_inputs, open(ENCODER_INPUT_FILEPATH, 'wb'))
+        pickle.dump(decoder_inputs, open(DECODER_INPUT_FILEPATH, 'wb'))
+        print("encoder and decoder inputs pickled!")
 
     return encoder_inputs, decoder_inputs, word_2_index, index_2_word
 
@@ -269,7 +269,7 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
 
     all_batches = []
     for batch_num in range(num_batches):
-        encoder_sequence_lengths = [len(sentence) 
+        encoder_sequence_lengths = [len(sentence)
                                     for sentence
                                     in enc_inputs[batch_num*batch_size:(batch_num+1)*batch_size]]
         max_len_enc = max(encoder_sequence_lengths)
@@ -277,15 +277,21 @@ def bucket_by_sequence_length(enc_inputs, dec_inputs, batch_size, sort_data=True
                          for i, sentence
                          in enumerate(enc_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
         encoder_batch = np.array(encoder_batch)
-        decoder_sequence_lengths = [len(sentence) 
+        decoder_sequence_lengths = [len(sentence) + 1
                                     for sentence
                                     in dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size]]
         max_len_dec = max(decoder_sequence_lengths)
-        decoder_batch = [sentence + ([PAD_TOKEN_INDEX] * (max_len_dec - decoder_sequence_lengths[i]))
+        decoder_inputs_batch = [[START_TOKEN_INDEX] + sentence + ([PAD_TOKEN_INDEX] * (max_len_dec - decoder_sequence_lengths[i]))
                          for i, sentence
                          in enumerate(dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
-        decoder_batch = np.array(decoder_batch)
-        all_batches.append((encoder_batch, encoder_sequence_lengths, decoder_batch, decoder_sequence_lengths))
+        decoder_inputs_batch = np.array(decoder_inputs_batch)
+
+        decoder_targets_batch = [sentence + [END_TOKEN_INDEX] + ([PAD_TOKEN_INDEX] * (max_len_dec - decoder_sequence_lengths[i]))
+                         for i, sentence
+                         in enumerate(dec_inputs[batch_num*batch_size:(batch_num+1)*batch_size])]
+        decoder_targets_batch = np.array(decoder_targets_batch)
+
+        all_batches.append((encoder_batch, encoder_sequence_lengths, decoder_inputs_batch, decoder_targets_batch, decoder_sequence_lengths))
 
     if shuffle_batches:
         shuffle(all_batches)
