@@ -110,24 +110,27 @@ def mainFunc(argv):
         is_first_tuple = True
         for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False):
             feed_dict = model.make_train_inputs(data_batch, data_sentence_lengths, label_batch, label_sentence_lengths)
-
-            softmax_predictions = sess.run(model.decoder_softmax_train, feed_dict)
+            #print(data_batch[:,0])
+            softmax_predictions = sess.run(model.decoder_softmax_inference, feed_dict)
+            #print(softmax_predictions[0,0,:10])
             # softmax_predictions.shape = (max_sentence_len, batch_size, vocabulary_size)
 
             # Perplexity calculation
             for sentID in range(len(label_sentence_lengths)): # Loop 
                 word_probs = []
                 # As long as we havent reached the maximum sentence length or seen the <eos>
-                for wordID in range(label_sentence_lengths[sentID]):
-                    ground_truth_word_index = label_batch[wordID, sentID]
-                    prob = softmax_predictions[wordID,sentID,ground_truth_word_index]
+                word_index = 0
+                while word_index < label_sentence_lengths[sentID] and word_index < softmax_predictions.shape[0]:
+                    ground_truth_word_index = label_batch[word_index, sentID]
+                    prob = softmax_predictions[word_index,sentID,ground_truth_word_index]
                     word_probs.append(prob)
+                    word_index += 1
 
                 # Our bucketing function doesn't add <eos>, so we
                 # manually add the probability of <eos> here.
                 word_probs.append(
                     softmax_predictions[
-                            label_sentence_lengths[sentID], 
+                            word_index-1,
                             sentID, 
                             END_TOKEN_INDEX])
                 log_probs = np.log(word_probs)
@@ -136,16 +139,17 @@ def mainFunc(argv):
 
 
                 if is_first_tuple:
-                    print(perplexity, end=' ')
+                    #print(perplexity, end=' ')
                     print(perplexity, end=' ', file=pplf)
                     is_first_tuple = False
                 else:
-                    print(perplexity)
+                    #print(perplexity)
                     print(perplexity, file=pplf)
 
                     is_first_tuple = True
             
             global_step += 1
+            print(global_step)
 
             # if global_step == 8:
             #     break
