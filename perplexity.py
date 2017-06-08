@@ -6,6 +6,17 @@ from baseline import BaselineModel
 from config import Config as conf
 import numpy as np
 
+testing_path = "Testing_Tuples.txt"
+
+
+def load_testing_tuples():
+    f = open(testing_path, 'r')
+    tuples = []
+    for line in f:
+        tuples.append(line.strip())
+    return tuples
+
+
 ###
 # Graph execution
 ###
@@ -16,10 +27,6 @@ def mainFunc(argv):
         print('experiment = experiment setup that should be executed. e.g \'baseline\'')
         print('input = what dialogs to predict from. e.g \'./Dialog_Triples.txt\'')
         print('checkpoint = Path to the checkpoint to load parameters from. e.g. \'./logs/baseline-ep4-500\'')
-        
-
-    def maptoword(sentence):
-        return " ".join(map(lambda x: index_2_word[x], sentence)) + '\n'
 
     num_cores = -1
     experiment = ""
@@ -39,6 +46,8 @@ def mainFunc(argv):
             num_cores = int(arg)
         elif opt in ("-x", "--experiment"):
             if arg in ("baseline"):
+                experiment = arg
+            elif arg in ("attention"):
                 experiment = arg
             else:
                 printUsage()
@@ -73,6 +82,15 @@ def mainFunc(argv):
                               attention=False,
                               dropout=conf.use_dropout,
                               num_layers=conf.num_layers)
+    elif experiment == "attention":
+        model = BaselineModel(encoder_cell=conf.encoder_cell,
+                              decoder_cell=conf.decoder_cell,
+                              vocab_size=conf.vocabulary_size,
+                              embedding_size=conf.word_embedding_size,
+                              bidirectional=False,
+                              attention=True,
+                              dropout=conf.use_dropout,
+                              num_layers=conf.num_layers)
     assert model != None
 
     with tf.Session(config=configProto) as sess:
@@ -82,11 +100,13 @@ def mainFunc(argv):
         sess.run(tf.global_variables_initializer())
         saver.restore(sess, checkpoint_filepath)
 
-        tuples = triples_to_tuples(input_filepath)
+        triples_to_tuples(input_filepath, testing_path)
         w2i, _ = get_w2i_i2w_dicts()
         vocabulary = get_vocabulary()
-        enc_inputs, dec_inputs = apply_w2i_to_corpus_tuples(tuples, vocabulary, w2i)
+        enc_inputs, dec_inputs = apply_w2i_to_corpus_tuples(load_testing_tuples(), vocabulary, w2i)
 
+        #perplexities = []
+        pplf = open("perplexities_attention_genres.out", 'w')
         is_first_tuple = True
         for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False):
             feed_dict = model.make_train_inputs(data_batch, data_sentence_lengths, label_batch, label_sentence_lengths)
@@ -113,15 +133,24 @@ def mainFunc(argv):
                 log_probs = np.log(word_probs)
 
                 perplexity = 2**(-1.0*log_probs.mean())
-                
+
+
                 if is_first_tuple:
                     print(perplexity, end=' ')
+                    print(perplexity, end=' ', file=pplf)
                     is_first_tuple = False
                 else:
                     print(perplexity)
+                    print(perplexity, file=pplf)
+
                     is_first_tuple = True
             
             global_step += 1
+
+            # if global_step == 8:
+            #     break
+
+        pplf.close()
 
 if __name__ == "__main__":
     mainFunc(sys.argv[1:])
