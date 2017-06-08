@@ -109,9 +109,10 @@ def mainFunc(argv):
                 data_batch = data_batch.transpose()
                 label_batch = label_batch.transpose()
                 predictions = predictions.transpose()
+                truncated_data = truncate_after_eos(data_batch)
                 truncated_labels = truncate_after_eos(label_batch)
                 truncated_predictions = truncate_after_eos(predictions)
-                for enc, target, pred in zip(map(maptoword, data_batch), map(maptoword, truncated_labels), map(maptoword, truncated_predictions)):
+                for enc, target, pred in zip(map(maptoword, truncated_data), map(maptoword, truncated_labels), map(maptoword, truncated_predictions)):
                     print("{}. Input:        {}".format(sent_count, enc), file=out)
                     print("{}. Ground Truth: {}".format(sent_count, target), file=out)
                     print("{}. Prediction:   {}".format(sent_count, pred), file=out)
