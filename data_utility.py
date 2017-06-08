@@ -304,12 +304,15 @@ def copy_config(to):
 
 
 def truncate_sentence(sent):
-    idxArr = np.where(sent == END_TOKEN_INDEX)[0]
-    if idxArr.size == 0:
-        return sent
+    endidxArr = np.where(sent == END_TOKEN_INDEX)[0]
+    if endidxArr.size != 0:
+        return sent[:endidxArr[0]+1]
     else:
-        return sent[:idxArr[0]+1]
-
+        padidxArr = np.where(sent == PAD_TOKEN_INDEX)[0]
+        if padidxArr.size != 0:
+            return sent[:padidxArr[0]]
+        else:
+            return sent
 
 def truncate_after_eos(sentence_list):
     return list(map(lambda sent: truncate_sentence(sent), sentence_list))

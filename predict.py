@@ -91,7 +91,7 @@ def mainFunc(argv):
     validation_input_lengths = set(map(lambda x: len(x), validation_enc_inputs))
     with tf.Session(config=configProto) as sess:
         global_step = 1
-
+        sent_count = 1
         saver = tf.train.Saver()
         sess.run(tf.global_variables_initializer())
         saver.restore(sess, checkpoint_filepath)
@@ -109,15 +109,17 @@ def mainFunc(argv):
                 feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths, lm_softmax_batch)
 
                 predictions = sess.run(model.decoder_prediction_inference, feed_dict)
+
+                truncated_data = truncate_after_eos(data_batch)
                 truncated_labels = truncate_after_eos(label_targets_batch)
                 truncated_predictions = truncate_after_eos(predictions)
-                for enc, target, pred in zip(map(maptoword, data_batch), map(maptoword, truncated_labels), map(maptoword, truncated_predictions)):
-                    print("{}. Input:        {}".format(global_step, enc), file=out)
-                    print("{}. Ground Truth: {}".format(global_step, target), file=out)
-                    print("{}. Prediction:   {}".format(global_step, pred), file=out)
+                for enc, target, pred in zip(map(maptoword, truncated_data), map(maptoword, truncated_labels), map(maptoword, truncated_predictions)):
+                    print("{}. Input:        {}".format(sent_count, enc), file=out)
+                    print("{}. Ground Truth: {}".format(sent_count, target), file=out)
+                    print("{}. Prediction:   {}".format(sent_count, pred), file=out)
+                    sent_count += 1
 
-                global_step += 1                        
-
+                global_step += 1
 
 if __name__ == "__main__":
     mainFunc(sys.argv[1:])
