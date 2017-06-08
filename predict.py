@@ -18,7 +18,7 @@ def mainFunc(argv):
         print('output = where to write the prediction outputs to. e.g \'./predictions.out\'')
 
     def maptoword(sentence):
-        return " ".join(map(lambda x: index_2_word[x], sentence)) + '\n'
+        return " ".join(map(lambda x: index_2_word[x], sentence))
 
     num_cores = -1
     experiment = ""
@@ -93,7 +93,7 @@ def mainFunc(argv):
     print("Using network to predict sentences..")
     with tf.Session(config=configProto) as sess:
         global_step = 1
-
+        sent_count = 1
         saver = tf.train.Saver()
         sess.run(tf.global_variables_initializer())
         saver.restore(sess, checkpoint_filepath)
@@ -105,9 +105,14 @@ def mainFunc(argv):
 
                 feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths)
 
-                predictions = sess.run(model.decoder_prediction_inference, feed_dict).T
+                predictions = sess.run(model.decoder_prediction_inference, feed_dict)
+                truncated_labels = truncate_after_eos(label_batch)
                 truncated_predictions = truncate_after_eos(predictions)
-                out.writelines(map(maptoword, truncated_predictions))
+                for enc, target, pred in zip(map(maptoword, data_batch), map(maptoword, truncated_labels), map(maptoword, truncated_predictions)):
+                    print("{}. Input:        {}".format(sent_count, enc), file=out)
+                    print("{}. Ground Truth: {}".format(sent_count, target), file=out)
+                    print("{}. Prediction:   {}".format(sent_count, pred), file=out)
+                    sent_count += 1
 
                 global_step += 1
 
