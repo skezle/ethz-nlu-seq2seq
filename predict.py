@@ -106,6 +106,9 @@ def mainFunc(argv):
                 feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths)
 
                 predictions = sess.run(model.decoder_prediction_inference, feed_dict)
+                data_batch = data_batch.transpose()
+                label_batch = label_batch.transpose()
+                predictions = predictions.transpose()
                 truncated_labels = truncate_after_eos(label_batch)
                 truncated_predictions = truncate_after_eos(predictions)
                 for enc, target, pred in zip(map(maptoword, data_batch), map(maptoword, truncated_labels), map(maptoword, truncated_predictions)):
