@@ -300,6 +300,7 @@ class BaselineModel():
                 )
             )
             self.decoder_prediction_inference = tf.argmax(self.decoder_logits_inference, axis=-1, name='decoder_prediction_inference')
+            self.decoder_softmax_inference = tf.nn.softmax(self.decoder_logits_inference)
 
     def _init_optimizer(self):
         logits = tf.transpose(self.decoder_logits_train, [1, 0, 2])
