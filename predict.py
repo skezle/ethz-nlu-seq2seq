@@ -86,7 +86,7 @@ def mainFunc(argv):
 
     assert model != None
     # Materialize validation data
-    validation_enc_inputs, _, word_2_index, index_2_word = get_data_by_type('eval')
+    validation_enc_inputs, validation_dec_inputs, word_2_index, index_2_word = get_data_by_type('eval')
 
     validation_input_lengths = set(map(lambda x: len(x), validation_enc_inputs))
     with tf.Session(config=configProto) as sess:
@@ -102,15 +102,19 @@ def mainFunc(argv):
         print("Using network to predict sentences..")
         with open(output_filepath, 'w') as out:
             for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(
-                    bucket_by_sequence_length(validation_enc_inputs, _, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False),
+                    bucket_by_sequence_length(validation_enc_inputs, validation_dec_inputs, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False),
                     total=ceil(len(validation_enc_inputs) / conf.batch_size)):
 
                 lm_softmax_batch = construct_lm_softmax_batch(lm_softmax_dict, data_sentence_lengths)
                 feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths, lm_softmax_batch)
 
                 predictions = sess.run(model.decoder_prediction_inference, feed_dict)
+                truncated_labels = truncate_after_eos(label_batch)
                 truncated_predictions = truncate_after_eos(predictions)
-                out.writelines(map(maptoword, truncated_predictions))
+                for enc, target, pred in zip(map(maptoword, data_batch), map(maptoword, truncated_labels), map(maptoword, truncated_predictions)):
+                    print("{}. Input:        {}".format(global_step, enc), file=out)
+                    print("{}. Ground Truth: {}".format(global_step, target), file=out)
+                    print("{}. Prediction:   {}".format(global_step, pred), file=out)
 
                 global_step += 1                        
 
