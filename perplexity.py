@@ -49,7 +49,7 @@ def mainFunc(argv):
         elif opt in ("-n", "--num_cores"):
             num_cores = int(arg)
         elif opt in ("-x", "--experiment"):
-            if arg in ("baseline"):
+            if arg in ("baseline", "attention"):
                 experiment = arg
             else:
                 printUsage()
@@ -84,13 +84,22 @@ def mainFunc(argv):
                               attention=False,
                               dropout=conf.use_dropout,
                               num_layers=conf.num_layers)
+    elif experiment == "attention":
+        model = BaselineModel(encoder_cell=conf.encoder_cell,
+                              decoder_cell=conf.decoder_cell,
+                              vocab_size=conf.vocabulary_size,
+                              embedding_size=conf.word_embedding_size,
+                              bidirectional=conf.bidirectional_encoder,
+                              attention=True,
+                              dropout=conf.use_dropout,
+                              num_layers=conf.num_layers)
     assert model != None
 
     with tf.Session(config=configProto) as sess:
         global_step = 1
 
         saver = tf.train.Saver()
-        sess.run(tf.global_variables_initializer())
+        #sess.run(tf.global_variables_initializer())
         saver.restore(sess, checkpoint_filepath)
 
         triples_to_tuples(input_filepath, testing_path)
@@ -130,17 +139,17 @@ def mainFunc(argv):
                 perplexity = 2**(-1.0*log_probs.mean())
                 
                 if is_first_tuple:
-                    #print(perplexity, end=' ')
+                    print(perplexity, end=' ')
                     print(perplexity, end=' ', file=pplf)
                     is_first_tuple = False
                 else:
-                    #print(perplexity)
+                    print(perplexity)
                     print(perplexity, file=pplf)
 
                     is_first_tuple = True
             
             global_step += 1
-            print(global_step)
+            break
 
 if __name__ == "__main__":
     mainFunc(sys.argv[1:])
