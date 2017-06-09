@@ -38,7 +38,7 @@ def mainFunc(argv):
         elif opt in ("-n", "--num_cores"):
             num_cores = int(arg)
         elif opt in ("-x", "--experiment"):
-            if arg in ("baseline"):
+            if arg in ("baseline", "attention"):
                 experiment = arg
             else:
                 printUsage()
@@ -65,14 +65,22 @@ def mainFunc(argv):
 
     model = None
     if experiment == "baseline":
-        model = BaselineModel(encoder_cell=conf.encoder_cell,
-                              decoder_cell=conf.decoder_cell,
-                              vocab_size=conf.vocabulary_size,
+        model = BaselineModel(vocab_size=conf.vocabulary_size,
                               embedding_size=conf.word_embedding_size,
-                              bidirectional=False,
+                              bidirectional=conf.bidirectional_encoder,
                               attention=False,
                               dropout=conf.use_dropout,
-                              num_layers=conf.num_layers)
+                              num_layers=conf.num_layers,
+                              is_training=False)
+
+    elif experiment == "attention":
+        model = BaselineModel(vocab_size=conf.vocabulary_size,
+                              embedding_size=conf.word_embedding_size,
+                              bidirectional=conf.bidirectional_encoder,
+                              attention=True,
+                              dropout=conf.use_dropout,
+                              num_layers=conf.num_layers,
+                              is_training=False)
     assert model != None
 
     with tf.Session(config=configProto) as sess:
