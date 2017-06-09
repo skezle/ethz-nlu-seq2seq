@@ -31,6 +31,7 @@ class Config:
     antilm_max_penalization_len = 4
 
     pick_multinomial_max_len = 1
+
     scheduled_sampling_prob = 0.25
 
     CORNELL_base_path = 'data/cornell_movie_dialogs_corpus'

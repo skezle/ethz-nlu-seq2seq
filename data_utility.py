@@ -222,6 +222,7 @@ def get_data_by_type(t):
             filename = conf.both_datasets_tuples_filepath
     elif t == 'eval':
         filename = VALIDATION_TUPLES_FILEPATH
+        print("Reading values from: {}".format(filename))
         if not os.path.isfile(filename):
             triples_to_tuples(VALIDATION_FILEPATH, filename)
     else:

@@ -6,6 +6,17 @@ from baseline import BaselineModel
 from config import Config as conf
 import numpy as np
 
+
+testing_path = "Testing_Tuples.txt"
+
+
+def load_testing_tuples():
+    f = open(testing_path, 'r')
+    tuples = []
+    for line in f:
+        tuples.append(line.strip())
+    return tuples
+
 ###
 # Graph execution
 ###
@@ -40,6 +51,8 @@ def mainFunc(argv):
         elif opt in ("-x", "--experiment"):
             if arg in ("baseline"):
                 experiment = arg
+            elif arg in ("attention"):
+                experiment = arg
             else:
                 printUsage()
                 sys.exit(2) 
@@ -73,6 +86,14 @@ def mainFunc(argv):
                               attention=False,
                               dropout=conf.use_dropout,
                               num_layers=conf.num_layers)
+    if experiment == "attention":
+        model = BaselineModel(vocab_size=conf.vocabulary_size,
+                              embedding_size=conf.word_embedding_size,
+                              bidirectional=conf.bidirectional_encoder,
+                              attention=True,
+                              dropout=conf.use_dropout,
+                              num_layers=conf.num_layers,
+                              is_training=True)
     assert model != None
 
     with tf.Session(config=configProto) as sess:
@@ -82,12 +103,13 @@ def mainFunc(argv):
         sess.run(tf.global_variables_initializer())
         saver.restore(sess, checkpoint_filepath)
 
-        tuples = triples_to_tuples(input_filepath)
+        triples_to_tuples(input_filepath, testing_path)
         w2i, _ = get_w2i_i2w_dicts()
         vocabulary = get_vocabulary()
-        enc_inputs, dec_inputs = apply_w2i_to_corpus_tuples(tuples, vocabulary, w2i)
+        enc_inputs, dec_inputs = apply_w2i_to_corpus_tuples(load_testing_tuples(), vocabulary, w2i)
 
         is_first_tuple = True
+        pplf = open("perplexities_attention_antilm.out", 'w')
         for data_batch, data_sentence_lengths, label_inputs_batch, label_targets_batch, label_sentence_lengths in bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False):
             feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths)
 
@@ -116,9 +138,11 @@ def mainFunc(argv):
                 
                 if is_first_tuple:
                     print(perplexity, end=' ')
+                    print(perplexity, end=' ', file=pplf)
                     is_first_tuple = False
                 else:
                     print(perplexity)
+                    print(perplexity, file=pplf)
                     is_first_tuple = True
             
             global_step += 1
