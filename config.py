@@ -5,7 +5,7 @@ class Config:
     bidirectional_encoder = False
     encoder_cell_size = 512
     decoder_cell_size = 512
-    num_layers = 1
+    num_layers = 3
     use_dropout = True
     dropout_keep_prob = 0.5
     batch_size = 40
@@ -27,9 +27,10 @@ class Config:
 
     attention_size = 512
 
-    antilm_penalization_weight = 0.6
-    antilm_max_penalization_len = 5
+    antilm_penalization_weight = 0.15   
+    antilm_max_penalization_len = 4
 
+    pick_multinomial_max_len = 1
     scheduled_sampling_prob = 0.25
 
     CORNELL_base_path = 'data/cornell_movie_dialogs_corpus'
