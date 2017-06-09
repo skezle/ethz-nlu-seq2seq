@@ -5,7 +5,7 @@ from data_utility import get_data_by_type, triples_to_tuples, apply_w2i_to_corpu
 from baseline import BaselineModel
 from config import Config as conf
 import numpy as np
-
+from antilm.antilm import construct_lm_logits, construct_lm_logits_batch
 
 testing_path = "Testing_Tuples.txt"
 
@@ -109,10 +109,16 @@ def mainFunc(argv):
         vocabulary = get_vocabulary()
         enc_inputs, dec_inputs = apply_w2i_to_corpus_tuples(load_testing_tuples(), vocabulary, w2i)
 
+        
+        print("Constructing language model")
+        validation_input_lengths = set(map(lambda x: len(x), enc_inputs))
+        lm_logits_dict = construct_lm_logits(sess, model, validation_input_lengths)
+        
         is_first_tuple = True
         pplf = open("perplexities_attention_antilm.out", 'w')
         for data_batch, data_sentence_lengths, label_inputs_batch, label_targets_batch, label_sentence_lengths in bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False):
-            feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths)
+            lm_logits_batch = construct_lm_logits_batch(lm_logits_dict, data_sentence_lengths)
+            feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths, lm_logits_batch)
 
             softmax_predictions = sess.run(model.decoder_softmax_prediction, feed_dict)
             # softmax_predictions.shape = (max_sentence_len, batch_size, vocabulary_size)
@@ -122,7 +128,7 @@ def mainFunc(argv):
                 word_probs = []
                 # As long as we havent reached the maximum sentence length or seen the <eos>
                 for wordID in range(label_sentence_lengths[sentID]):
-                    ground_truth_word_index = label_batch[wordID, sentID]
+                    ground_truth_word_index = label_targets_batch[wordID, sentID]
                     prob = softmax_predictions[wordID,sentID,ground_truth_word_index]
                     word_probs.append(prob)
 
