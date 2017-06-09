@@ -133,7 +133,7 @@ class BaselineModel():
             name='decoder_targets_length',
         )
 
-        self.lm_softmax = tf.placeholder(
+        self.lm_logits = tf.placeholder(
             shape=(None, None, None),
             dtype=tf.float32,
             name='lm_softmax',
@@ -285,7 +285,7 @@ class BaselineModel():
                     embedding=self.embedding_matrix,
                     start_tokens=tf.tile([START_TOKEN_INDEX], [self.batch_size]),
                     end_token=END_TOKEN_INDEX,
-                    lm_softmax=self.lm_softmax)
+                    lm_logits=self.lm_logits)
 
             self.decoder_inference = tf.contrib.seq2seq.BasicDecoder(
                     cell=self.decoder_cell,
@@ -324,8 +324,7 @@ class BaselineModel():
                 impute_finished=False,
                 maximum_iterations=conf.antilm_max_penalization_len,
                 scope=scope)
-            dummy_decoder_logits = decoder_dummy_prediction_outputs.rnn_output
-            self.dummy_decoder_softmax = tf.nn.softmax(dummy_decoder_logits)
+            self.dummy_decoder_logits = decoder_dummy_prediction_outputs.rnn_output
             
     def _init_optimizer(self):
         logits = tf.transpose(self.decoder_logits_train, [1, 0, 2])
@@ -357,13 +356,13 @@ class BaselineModel():
             self.dropout_keep_prob: keep_prob,
         }
 
-    def make_inference_inputs(self, input_seq, input_seq_len, lm_softmax = None):
+    def make_inference_inputs(self, input_seq, input_seq_len, lm_logits = None):
         dic = {
             self.encoder_inputs: input_seq,
             self.encoder_inputs_length: input_seq_len,
             self.dropout_keep_prob: 1,
         }
-        if lm_softmax is not None:
-            dic[self.lm_softmax] = lm_softmax
+        if lm_logits is not None:
+            dic[self.lm_logits] = lm_logits
 
         return dic

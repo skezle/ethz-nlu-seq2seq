@@ -5,7 +5,7 @@ from random import choice
 from tqdm import tqdm
 from data_utility import *
 from baseline import BaselineModel
-from antilm.antilm import construct_lm_softmax, construct_lm_softmax_batch
+from antilm.antilm import construct_lm_logits, construct_lm_logits_batch
 ###
 # Graph execution
 ###
@@ -97,7 +97,7 @@ def mainFunc(argv):
         saver.restore(sess, checkpoint_filepath)
 
         print("Constructing language model")
-        lm_softmax_dict = construct_lm_softmax(sess, model, validation_input_lengths)
+        lm_logits_dict = construct_lm_logits(sess, model, validation_input_lengths)
 
         print("Using network to predict sentences..")
         with open(output_filepath, 'w') as out:
@@ -105,8 +105,8 @@ def mainFunc(argv):
                     bucket_by_sequence_length(validation_enc_inputs, validation_dec_inputs, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False),
                     total=ceil(len(validation_enc_inputs) / conf.batch_size)):
 
-                lm_softmax_batch = construct_lm_softmax_batch(lm_softmax_dict, data_sentence_lengths)
-                feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths, lm_softmax_batch)
+                lm_logits_batch = construct_lm_logits_batch(lm_logits_dict, data_sentence_lengths)
+                feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths, lm_logits_batch)
 
                 predictions = sess.run(model.decoder_prediction_inference, feed_dict)
 

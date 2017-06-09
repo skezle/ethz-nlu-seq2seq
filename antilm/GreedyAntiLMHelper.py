@@ -84,7 +84,7 @@ class GreedyAntiLMHelper(CustomHelper):
   result through an embedding layer to get the next input.
   """
 
-  def __init__(self, embedding, start_tokens, end_token, lm_softmax):
+  def __init__(self, embedding, start_tokens, end_token, lm_logits):
     """Initializer.
 
     Args:
@@ -102,7 +102,7 @@ class GreedyAntiLMHelper(CustomHelper):
       self._embedding_fn = (
           lambda ids: embedding_ops.embedding_lookup(embedding, ids))
 
-    self._penalized_lm_softmax = math_ops.scalar_mul(conf.antilm_penalization_weight, lm_softmax)
+    self._penalized_lm_probs = math_ops.scalar_mul(conf.antilm_penalization_weight, self.logits_to_probs(lm_logits))
     self._start_tokens = ops.convert_to_tensor(
         start_tokens, dtype=dtypes.int32, name="start_tokens")
     self._end_token = ops.convert_to_tensor(
@@ -129,9 +129,12 @@ class GreedyAntiLMHelper(CustomHelper):
     if not isinstance(outputs, ops.Tensor):
       raise TypeError("Expected outputs to be a single Tensor, got: %s" %
                       type(outputs))
-    outputs_softmax = outputs#tf.nn.softmax(outputs)
-    #penalized_softmax = math_ops.subtract(outputs_softmax, self.get_threshold_softmax_slice(time))
-    sample_ids = self.calc_sample_id(time, outputs_softmax)
+    outputs_logits = outputs
+    output_probs = self.logits_to_probs(outputs)
+    penalized_probs = math_ops.subtract(output_probs, self.get_threshold_softmax_slice(time))
+    clipped_probs = math_ops.maximum(0.0, penalized_probs)
+    penalized_logits = self.probs_to_logits(clipped_probs)
+    sample_ids = self.calc_sample_id(time, penalized_logits)
     return sample_ids
 
   def next_inputs(self, time, outputs, state, sample_ids, name=None):
@@ -148,11 +151,17 @@ class GreedyAntiLMHelper(CustomHelper):
 
   def get_threshold_softmax_slice(self, time):
     return tf.cond(time < conf.antilm_max_penalization_len,
-            lambda: self._penalized_lm_softmax[:, time, :],
-            lambda: tf.zeros([tf.shape(self._penalized_lm_softmax)[0], conf.vocabulary_size], tf.float32))
+            lambda: self._penalized_lm_probs[:, time, :],
+            lambda: tf.zeros([tf.shape(self._penalized_lm_probs)[0], conf.vocabulary_size], tf.float32))
 
-  def calc_sample_id(self, time, softmax):
-    return tf.cond(time < conf.antilm_max_penalization_len,
-            lambda: tf.cast(tf.multinomial(softmax, 1), tf.int32)[:, 0],
-            lambda: math_ops.cast(math_ops.argmax(softmax, axis=-1), dtypes.int32)
+  def calc_sample_id(self, time, logits):
+    return tf.cond(time < conf.pick_multinomial_max_len,
+            lambda: tf.cast(tf.multinomial(logits, 1), tf.int32)[:, 0],
+            lambda: math_ops.cast(math_ops.argmax(logits, axis=-1), dtypes.int32)
             )
+  def logits_to_probs(self, logits):
+    exp = math_ops.exp(logits)
+    return exp / (exp + 1)
+
+  def probs_to_logits(self, probs):
+    return math_ops.log(probs / (1 - probs))
