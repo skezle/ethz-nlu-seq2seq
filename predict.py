@@ -18,7 +18,7 @@ def mainFunc(argv):
         print('output = where to write the prediction outputs to. e.g \'./predictions.out\'')
 
     def maptoword(sentence):
-        return " ".join(map(lambda x: index_2_word[x], sentence)) + '\n'
+        return " ".join(map(lambda x: index_2_word[x], sentence))
 
     num_cores = -1
     experiment = ""
