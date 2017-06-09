@@ -49,7 +49,7 @@ def mainFunc(argv):
         elif opt in ("-n", "--num_cores"):
             num_cores = int(arg)
         elif opt in ("-x", "--experiment"):
-            if arg in ("baseline"):
+            if arg in ("baseline", "attention"):
                 experiment = arg
             elif arg in ("attention"):
                 experiment = arg
@@ -78,22 +78,23 @@ def mainFunc(argv):
 
     model = None
     if experiment == "baseline":
-        model = BaselineModel(encoder_cell=conf.encoder_cell,
-                              decoder_cell=conf.decoder_cell,
-                              vocab_size=conf.vocabulary_size,
+        model = BaselineModel(vocab_size=conf.vocabulary_size,
                               embedding_size=conf.word_embedding_size,
-                              bidirectional=False,
+                              bidirectional=conf.bidirectional_encoder,
                               attention=False,
                               dropout=conf.use_dropout,
-                              num_layers=conf.num_layers)
-    if experiment == "attention":
+                              num_layers=conf.num_layers,
+                              is_training=False)
+
+    elif experiment == "attention":
         model = BaselineModel(vocab_size=conf.vocabulary_size,
                               embedding_size=conf.word_embedding_size,
                               bidirectional=conf.bidirectional_encoder,
                               attention=True,
                               dropout=conf.use_dropout,
                               num_layers=conf.num_layers,
-                              is_training=True)
+                              is_training=False)
+
     assert model != None
 
     with tf.Session(config=configProto) as sess:
@@ -113,7 +114,7 @@ def mainFunc(argv):
         for data_batch, data_sentence_lengths, label_inputs_batch, label_targets_batch, label_sentence_lengths in bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False):
             feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths)
 
-            softmax_predictions = sess.run(model.decoder_softmax_train, feed_dict)
+            softmax_predictions = sess.run(model.decoder_softmax_prediction, feed_dict)
             # softmax_predictions.shape = (max_sentence_len, batch_size, vocabulary_size)
 
             # Perplexity calculation

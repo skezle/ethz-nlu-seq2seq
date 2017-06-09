@@ -302,6 +302,7 @@ class BaselineModel():
                 scope=scope)
 
             self.decoder_prediction_inference = decoder_prediction_outputs.sample_id
+            self.decoder_softmax_prediction = tf.nn.softmax(decoder_prediction_outputs.rnn_output)
             
     def _init_dummy_inference_decoder(self):
         with tf.variable_scope(self.decoder_scope_name, reuse=True) as scope:
