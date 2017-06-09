@@ -25,8 +25,7 @@ def construct_lm_logits(sess, model, validation_input_lengths):
     print("Constructing dummy language model")
 
     all_logits = []
-    for dummy_batch, dummy_batch_lens in tqdm(
-                    batch_dummy_paddings(sorted_padding_lengths), total=ceil(len(sorted_padding_lengths) / conf.batch_size)):
+    for dummy_batch, dummy_batch_lens in batch_dummy_paddings(sorted_padding_lengths):
 
         feed_dict = model.make_inference_inputs(dummy_batch, dummy_batch_lens)
         decoder_logits= sess.run(model.dummy_decoder_logits, feed_dict)

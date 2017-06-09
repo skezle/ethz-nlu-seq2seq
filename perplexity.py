@@ -110,7 +110,6 @@ def mainFunc(argv):
         enc_inputs, dec_inputs = apply_w2i_to_corpus_tuples(load_testing_tuples(), vocabulary, w2i)
 
         
-        print("Constructing language model")
         validation_input_lengths = set(map(lambda x: len(x), enc_inputs))
         lm_logits_dict = construct_lm_logits(sess, model, validation_input_lengths)
         
@@ -121,13 +120,11 @@ def mainFunc(argv):
             feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths, lm_logits_batch)
 
             softmax_predictions = sess.run(model.decoder_softmax_prediction, feed_dict)
-            #print(softmax_predictions.shape)
-            # softmax_predictions.shape = (max_sentence_len, batch_size, vocabulary_size)
 
             # Perplexity calculation
             for sentID in range(len(label_sentence_lengths)): # Loop 
                 word_probs = []
-                # As long as we havent reached the maximum sentence length or seen the <eos>
+                # As long as we havent reached either end of the target or predicted sentences
                 word_index = 0
                 while word_index < label_sentence_lengths[sentID] and word_index < softmax_predictions.shape[1]:
                     ground_truth_word_index = label_targets_batch[sentID, word_index]
