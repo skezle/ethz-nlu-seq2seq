@@ -35,7 +35,7 @@ DECODER_INPUT_FILEPATH = 'pickled_vars/decoder_inputs.p'
 ###
 
 def triples_to_tuples(input_filepath, output_filepath):
-    print("Converting triples from {} to tuples..".format(input_filepath))
+    #print("Converting triples from {} to tuples..".format(input_filepath))
     f = open(input_filepath, 'r')
     f1 = open(output_filepath, 'w')
 

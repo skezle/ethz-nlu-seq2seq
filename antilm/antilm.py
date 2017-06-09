@@ -22,7 +22,7 @@ def construct_lm_logits(sess, model, validation_input_lengths):
     sorted_padding_lengths = list(sorted(list(validation_input_lengths)))
 
     # loop through all the batches
-    print("Constructing dummy language model")
+    #print("Constructing dummy language model")
 
     all_logits = []
     for dummy_batch, dummy_batch_lens in batch_dummy_paddings(sorted_padding_lengths):
