@@ -101,7 +101,7 @@ def mainFunc(argv):
 
         print("Using network to predict sentences..")
         with open(output_filepath, 'w') as out:
-            for data_batch, data_sentence_lengths, label_batch, label_sentence_lengths in tqdm(
+            for data_batch, data_sentence_lengths, _, label_targets_batch, label_sentence_lengths in tqdm(
                     bucket_by_sequence_length(validation_enc_inputs, validation_dec_inputs, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False),
                     total=ceil(len(validation_enc_inputs) / conf.batch_size)):
 
@@ -109,7 +109,7 @@ def mainFunc(argv):
                 feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths, lm_softmax_batch)
 
                 predictions = sess.run(model.decoder_prediction_inference, feed_dict)
-                truncated_labels = truncate_after_eos(label_batch)
+                truncated_labels = truncate_after_eos(label_targets_batch)
                 truncated_predictions = truncate_after_eos(predictions)
                 for enc, target, pred in zip(map(maptoword, data_batch), map(maptoword, truncated_labels), map(maptoword, truncated_predictions)):
                     print("{}. Input:        {}".format(global_step, enc), file=out)
