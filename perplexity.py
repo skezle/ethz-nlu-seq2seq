@@ -121,6 +121,7 @@ def mainFunc(argv):
             feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths, lm_logits_batch)
 
             softmax_predictions = sess.run(model.decoder_softmax_prediction, feed_dict)
+            #print(softmax_predictions.shape)
             # softmax_predictions.shape = (max_sentence_len, batch_size, vocabulary_size)
 
             # Perplexity calculation
@@ -128,19 +129,12 @@ def mainFunc(argv):
                 word_probs = []
                 # As long as we havent reached the maximum sentence length or seen the <eos>
                 word_index = 0
-                while word_index < label_sentence_lengths[sentID] and word_index < softmax_predictions.shape[0]:
-                    ground_truth_word_index = label_targets_batch[word_index, sentID]
-                    prob = softmax_predictions[word_index,sentID,ground_truth_word_index]
+                while word_index < label_sentence_lengths[sentID] and word_index < softmax_predictions.shape[1]:
+                    ground_truth_word_index = label_targets_batch[sentID, word_index]
+                    prob = softmax_predictions[sentID, word_index,ground_truth_word_index]
                     word_probs.append(prob)
                     word_index += 1
 
-                # Our bucketing function doesn't add <eos>, so we
-                # manually add the probability of <eos> here.
-                word_probs.append(
-                    softmax_predictions[
-                            word_index-1,
-                            sentID, 
-                            END_TOKEN_INDEX])
                 log_probs = np.log(word_probs)
 
                 perplexity = 2**(-1.0*log_probs.mean())
