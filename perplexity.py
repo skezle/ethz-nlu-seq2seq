@@ -89,7 +89,7 @@ def mainFunc(argv):
 
         is_first_tuple = True
         for data_batch, data_sentence_lengths, label_inputs_batch, label_targets_batch, label_sentence_lengths in bucket_by_sequence_length(enc_inputs, dec_inputs, conf.batch_size, sort_data=False, shuffle_batches=False, filter_long_sent=False):
-            feed_dict = model.make_train_inputs(data_batch, data_sentence_lengths, label_inputs_batch, label_targets_batch, label_sentence_lengths)
+            feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths)
 
             softmax_predictions = sess.run(model.decoder_softmax_train, feed_dict)
             # softmax_predictions.shape = (max_sentence_len, batch_size, vocabulary_size)
