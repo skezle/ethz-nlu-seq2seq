@@ -129,10 +129,9 @@ class GreedyAntiLMHelper(CustomHelper):
     if not isinstance(outputs, ops.Tensor):
       raise TypeError("Expected outputs to be a single Tensor, got: %s" %
                       type(outputs))
-    outputs_softmax = tf.nn.softmax(outputs)
-    penalized_softmax = math_ops.subtract(outputs_softmax, self.get_threshold_softmax_slice(time))
-    sample_ids = math_ops.cast(
-        math_ops.argmax(penalized_softmax, axis=-1), dtypes.int32)
+    outputs_softmax = outputs#tf.nn.softmax(outputs)
+    #penalized_softmax = math_ops.subtract(outputs_softmax, self.get_threshold_softmax_slice(time))
+    sample_ids = self.calc_sample_id(time, outputs_softmax)
     return sample_ids
 
   def next_inputs(self, time, outputs, state, sample_ids, name=None):
@@ -151,3 +150,9 @@ class GreedyAntiLMHelper(CustomHelper):
     return tf.cond(time < conf.antilm_max_penalization_len,
             lambda: self._penalized_lm_softmax[:, time, :],
             lambda: tf.zeros([tf.shape(self._penalized_lm_softmax)[0], conf.vocabulary_size], tf.float32))
+
+  def calc_sample_id(self, time, softmax):
+    return tf.cond(time < conf.antilm_max_penalization_len,
+            lambda: tf.cast(tf.multinomial(softmax, 1), tf.int32)[:, 0],
+            lambda: math_ops.cast(math_ops.argmax(softmax, axis=-1), dtypes.int32)
+            )

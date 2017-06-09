@@ -281,10 +281,11 @@ class BaselineModel():
     
     def _init_inference_decoder(self):
         with tf.variable_scope(self.decoder_scope_name) as scope:
-            inferenceHelper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
+            inferenceHelper = GreedyAntiLMHelper(
                     embedding=self.embedding_matrix,
                     start_tokens=tf.tile([START_TOKEN_INDEX], [self.batch_size]),
-                    end_token=END_TOKEN_INDEX)
+                    end_token=END_TOKEN_INDEX,
+                    lm_softmax=self.lm_softmax)
 
             self.decoder_inference = tf.contrib.seq2seq.BasicDecoder(
                     cell=self.decoder_cell,
