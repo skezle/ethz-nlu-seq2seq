@@ -127,16 +127,18 @@ def mainFunc(argv):
             for sentID in range(len(label_sentence_lengths)): # Loop 
                 word_probs = []
                 # As long as we havent reached the maximum sentence length or seen the <eos>
-                for wordID in range(label_sentence_lengths[sentID]):
-                    ground_truth_word_index = label_targets_batch[wordID, sentID]
-                    prob = softmax_predictions[wordID,sentID,ground_truth_word_index]
+                word_index = 0
+                while word_index < label_sentence_lengths[sentID] and word_index < softmax_predictions.shape[0]:
+                    ground_truth_word_index = label_targets_batch[word_index, sentID]
+                    prob = softmax_predictions[word_index,sentID,ground_truth_word_index]
                     word_probs.append(prob)
+                    word_index += 1
 
                 # Our bucketing function doesn't add <eos>, so we
                 # manually add the probability of <eos> here.
                 word_probs.append(
                     softmax_predictions[
-                            label_sentence_lengths[sentID], 
+                            word_index-1,
                             sentID, 
                             END_TOKEN_INDEX])
                 log_probs = np.log(word_probs)
