@@ -316,3 +316,6 @@ def truncate_sentence(sent):
 
 def truncate_after_eos(sentence_list):
     return list(map(lambda sent: truncate_sentence(sent), sentence_list))
+
+def undo_input_reversal(reversed_sentences_list):
+    return list(map(lambda sent: reversed(sent), reversed_sentences_list))

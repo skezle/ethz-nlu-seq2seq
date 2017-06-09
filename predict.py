@@ -109,8 +109,9 @@ def mainFunc(argv):
                 feed_dict = model.make_inference_inputs(data_batch, data_sentence_lengths, lm_logits_batch)
 
                 predictions = sess.run(model.decoder_prediction_inference, feed_dict)
-
-                truncated_data = truncate_after_eos(data_batch)
+                
+                reversed_truncated_data = truncate_after_eos(data_batch)
+                truncated_data = undo_input_reversal(reversed_truncated_data)
                 truncated_labels = truncate_after_eos(label_targets_batch)
                 truncated_predictions = truncate_after_eos(predictions)
                 for enc, target, pred in zip(map(maptoword, truncated_data), map(maptoword, truncated_labels), map(maptoword, truncated_predictions)):
