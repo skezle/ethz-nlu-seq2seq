@@ -49,3 +49,8 @@ checkpoint = Path to the checkpoint to load parameters from. e.g. './logs/baseli
 ```
 
 We also provide the `./run-test.sh` script which prints perplexities using our provided checkpoint `final_checkpoint.ckpt`
+
+## Attributions
+
+* Our baseline model is based on [ematvey/tensorflow-seq2seq-tutorials](https://github.com/ematvey/tensorflow-seq2seq-tutorials).
+* The idea for anti-lm has been taken from [Marsan-Ma/tf_chatbot_seq2seq_antilm](https://github.com/Marsan-Ma/tf_chatbot_seq2seq_antilm).
