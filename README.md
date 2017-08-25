@@ -1,14 +1,14 @@
 # NLU Project 2: Beyond seq2seq Dialog Systems
 This repository contains the submission for the student project in the "Natural Language Understanding" course at ETH Zürich in spring 2017. The goal of the project was to train a conversational agent using sequence-to-sequence recurrent neural networks and further improve performance by extending the baseline seq2seq model.
 
-# Authors
+### Authors
 
 * [Florian Chlan](https://github.com/flock0)
 * [Samuel Kessler](https://github.com/skezle)
 * [Jovan Nikolic](https://github.com/jovan-ioanis)
 * [Jovan Andonov](https://github.com/ac1dxtrem)
 
-# Project Report
+### Project Report
 Can be found [here](https://github.com/skezle/ethz-nlu-seq2seq/blob/master/report/nlu-project-2.pdf)
 
 ### Requirements
@@ -59,7 +59,7 @@ checkpoint = Path to the checkpoint to load parameters from. e.g. './logs/baseli
 
 We also provide the `./run-test.sh` script which prints perplexities using our provided checkpoint `final_checkpoint.ckpt`
 
-## Attributions
+### Attributions
 
 * Our baseline model is based on [ematvey/tensorflow-seq2seq-tutorials](https://github.com/ematvey/tensorflow-seq2seq-tutorials).
 * The idea for anti-lm has been taken from [Marsan-Ma/tf_chatbot_seq2seq_antilm](https://github.com/Marsan-Ma/tf_chatbot_seq2seq_antilm).
