@@ -1,6 +1,15 @@
-# ethz-nlu-seq2seq
+# NLU Project 2: Beyond seq2seq Dialog Systems
+This repository contains the submission for the student project in the "Natural Language Understanding" course at ETH Zürich in spring 2017. The goal of the project was to train a conversational agent using sequence-to-sequence recurrent neural networks and further improve performance by extending the baseline seq2seq model.
 
-## Task 2: Dialogue system
+# Authors
+
+* [Florian Chlan](https://github.com/flock0)
+* [Samuel Kessler](https://github.com/skezle)
+* [Jovan Nikolic](https://github.com/jovan-ioanis)
+* [Jovan Andonov](https://github.com/ac1dxtrem)
+
+# Project Report
+Can be found [here](https://github.com/skezle/ethz-nlu-seq2seq/blob/master/report/nlu-project-2.pdf)
 
 ### Requirements
 
